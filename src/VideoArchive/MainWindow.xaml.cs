@@ -132,6 +132,12 @@ public sealed partial class MainWindow : Window
         {
             GalleryViewControl.Visibility = ViewModel.IsGalleryView ? Visibility.Visible : Visibility.Collapsed;
             DetailsViewControl.Visibility = ViewModel.IsGalleryView ? Visibility.Collapsed : Visibility.Visible;
+
+            // Scroll the selected video into view in the newly visible view
+            if (ViewModel.IsGalleryView)
+                GalleryViewControl.ScrollToSelected();
+            else
+                DetailsViewControl.ScrollToSelected();
         }
     }
 

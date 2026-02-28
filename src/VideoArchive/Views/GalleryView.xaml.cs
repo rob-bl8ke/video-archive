@@ -72,4 +72,29 @@ public sealed partial class GalleryView : UserControl
             return Visibility.Visible;
         return Visibility.Collapsed;
     }
+
+    /// <summary>
+    /// Syncs the GridView selection to ViewModel.SelectedVideo and scrolls it into view.
+    /// Call when switching to gallery view.
+    /// </summary>
+    public void ScrollToSelected()
+    {
+        if (ViewModel.SelectedVideo is null) return;
+
+        VideoGrid.SelectedItem = ViewModel.SelectedVideo;
+        VideoGrid.ScrollIntoView(ViewModel.SelectedVideo);
+
+        // Re-apply the selection border after layout
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            if (_previousSelectedContainer is not null)
+                _previousSelectedContainer.BorderBrush = TransparentBrush;
+
+            if (VideoGrid.ContainerFromItem(ViewModel.SelectedVideo) is GridViewItem container)
+            {
+                container.BorderBrush = SelectedBorderBrush;
+                _previousSelectedContainer = container;
+            }
+        });
+    }
 }

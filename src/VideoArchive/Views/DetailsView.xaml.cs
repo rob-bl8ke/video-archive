@@ -39,6 +39,18 @@ public sealed partial class DetailsView : UserControl
         }
     }
 
+    /// <summary>
+    /// Syncs the DataGrid selection to ViewModel.SelectedVideo and scrolls it into view.
+    /// Call when switching to details view.
+    /// </summary>
+    public void ScrollToSelected()
+    {
+        if (ViewModel.SelectedVideo is null) return;
+
+        VideosGrid.SelectedItem = ViewModel.SelectedVideo;
+        VideosGrid.ScrollIntoView(ViewModel.SelectedVideo, null);
+    }
+
     private void VideosGrid_Sorting(object sender, DataGridColumnEventArgs e)
     {
         var tag = e.Column.Tag as string;
