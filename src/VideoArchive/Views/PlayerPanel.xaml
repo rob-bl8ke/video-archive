@@ -1,0 +1,16 @@
+<UserControl
+    x:Class="VideoArchive.Views.PlayerPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+          CornerRadius="8"
+          Padding="16"
+          MinHeight="200">
+        <TextBlock Text="Player Panel — coming in Phase 9"
+                   Style="{ThemeResource BodyTextBlockStyle}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   VerticalAlignment="Center"
+                   HorizontalAlignment="Center" />
+    </Grid>
+</UserControl>

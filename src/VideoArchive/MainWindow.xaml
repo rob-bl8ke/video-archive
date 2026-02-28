@@ -3,17 +3,99 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:VideoArchive"
+    xmlns:views="using:VideoArchive.Views"
     Title="Video Archive">
 
-    <Grid Padding="24">
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
-            <TextBlock Text="Video Archive"
-                       Style="{ThemeResource TitleLargeTextBlockStyle}"
-                       HorizontalAlignment="Center" />
-            <TextBlock Text="WinUI 3 Desktop Application"
-                       Style="{ThemeResource BodyTextBlockStyle}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       HorizontalAlignment="Center" />
-        </StackPanel>
+    <Grid>
+        <NavigationView x:Name="NavView"
+                        IsBackButtonVisible="Collapsed"
+                        PaneDisplayMode="Left"
+                        IsPaneOpen="False"
+                        SelectionChanged="NavView_SelectionChanged">
+
+            <!-- Navigation items -->
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Library" Tag="Library">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8B7;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <NavigationView.FooterMenuItems>
+                <NavigationViewItem Content="Settings" Tag="Settings">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE713;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.FooterMenuItems>
+
+            <!-- Header with toolbar -->
+            <NavigationView.Header>
+                <Grid Padding="0,0,24,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <!-- Search -->
+                        <AutoSuggestBox x:Name="SearchBox"
+                                        PlaceholderText="Search videos..."
+                                        QueryIcon="Find"
+                                        Width="250"
+                                        VerticalAlignment="Center" />
+
+                        <!-- View toggle -->
+                        <AppBarSeparator />
+                        <ToggleButton x:Name="GalleryToggle"
+                                      IsChecked="{x:Bind ViewModel.IsGalleryView, Mode=TwoWay}"
+                                      ToolTipService.ToolTip="Gallery View"
+                                      Padding="8">
+                            <FontIcon Glyph="&#xE8A9;" FontSize="16" />
+                        </ToggleButton>
+                        <ToggleButton x:Name="DetailsToggle"
+                                      Click="DetailsToggle_Click"
+                                      ToolTipService.ToolTip="Details View"
+                                      Padding="8">
+                            <FontIcon Glyph="&#xE14C;" FontSize="16" />
+                        </ToggleButton>
+
+                        <!-- Player toggle -->
+                        <AppBarSeparator />
+                        <ToggleButton x:Name="PlayerToggle"
+                                      IsChecked="{x:Bind ViewModel.IsPlayerVisible, Mode=TwoWay}"
+                                      ToolTipService.ToolTip="Show/Hide Player"
+                                      Padding="8">
+                            <FontIcon Glyph="&#xE768;" FontSize="16" />
+                        </ToggleButton>
+
+                        <!-- Refresh -->
+                        <AppBarSeparator />
+                        <Button Command="{x:Bind ViewModel.RefreshLibraryCommand}"
+                                ToolTipService.ToolTip="Refresh Library"
+                                Padding="8">
+                            <FontIcon Glyph="&#xE72C;" FontSize="16" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </NavigationView.Header>
+
+            <!-- Content area -->
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Library / Settings content -->
+                <Grid x:Name="ContentArea" Grid.Row="0">
+                    <views:GalleryView x:Name="GalleryViewControl"
+                                       Visibility="{x:Bind ViewModel.IsGalleryView, Mode=OneWay}" />
+                    <views:DetailsView x:Name="DetailsViewControl" />
+                    <views:SettingsPage x:Name="SettingsPageControl" Visibility="Collapsed" />
+                </Grid>
+
+                <!-- Player panel (collapsible) -->
+                <views:PlayerPanel x:Name="PlayerPanelControl"
+                                   Grid.Row="1"
+                                   Visibility="{x:Bind ViewModel.IsPlayerVisible, Mode=OneWay}" />
+            </Grid>
+        </NavigationView>
     </Grid>
 </Window>
