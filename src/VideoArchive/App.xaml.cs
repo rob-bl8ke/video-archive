@@ -30,7 +30,7 @@ public partial class App : Application
         services.AddScoped<ITagService, TagService>();
 
         // ViewModels
-        services.AddTransient<MainViewModel>();
+        services.AddSingleton<MainViewModel>();
         services.AddSingleton<VideoPlayerViewModel>();
         services.AddTransient<SettingsViewModel>();
 

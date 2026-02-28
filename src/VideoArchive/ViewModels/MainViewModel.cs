@@ -80,7 +80,11 @@ public partial class MainViewModel : ObservableObject
                 (v.Format?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
-        Videos = new ObservableCollection<Video>(filtered);
+        // Clear and repopulate instead of replacing the collection
+        // so that ItemsSource bindings and CollectionChanged handlers remain valid.
+        Videos.Clear();
+        foreach (var v in filtered)
+            Videos.Add(v);
     }
 }
 #pragma warning restore MVVMTK0045

@@ -146,6 +146,10 @@ public sealed partial class SettingsPage : UserControl
 
         dialog.Hide();
         await ViewModel.LoadFoldersCommand.ExecuteAsync(null);
+
+        // Reload video list in the shared MainViewModel so Library views update
+        var mainVm = App.Services.GetRequiredService<MainViewModel>();
+        await mainVm.LoadVideosCommand.ExecuteAsync(null);
     }
 
     private void CleanThumbnails_Click(object sender, RoutedEventArgs e)

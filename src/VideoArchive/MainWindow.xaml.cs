@@ -43,6 +43,15 @@ public sealed partial class MainWindow : Window
         NavView.SelectedItem = NavView.MenuItems[0];
         DetailsToggle.IsChecked = !ViewModel.IsGalleryView;
         UpdateViewVisibility();
+
+        // Load existing videos from DB on startup (one-shot)
+        bool _loaded = false;
+        this.Activated += async (_, _) =>
+        {
+            if (_loaded) return;
+            _loaded = true;
+            await ViewModel.LoadVideosCommand.ExecuteAsync(null);
+        };
     }
 
     private void RestoreWindowPlacement()
