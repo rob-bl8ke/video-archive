@@ -163,4 +163,9 @@ public sealed partial class MainWindow : Window
         // Reload video list
         await ViewModel.LoadVideosCommand.ExecuteAsync(null);
     }
+
+    private async void ManageTagsButton_Click(object sender, RoutedEventArgs e)
+    {
+        await VideoArchive.Views.TagManagerDialog.ShowAsync(Content.XamlRoot);
+    }
 }

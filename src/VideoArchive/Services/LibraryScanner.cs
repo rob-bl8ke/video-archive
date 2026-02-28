@@ -77,6 +77,9 @@ public class LibraryScanner(IServiceScopeFactory scopeFactory, IThumbnailService
                 catch (OperationCanceledException) { throw; }
                 catch { /* thumbnail failed — continue without */ }
 
+                // Read tags from container and sync to DB
+                await SyncContainerTagsAsync(context, video, cancellationToken);
+
                 progress?.Report((i + 1, total));
             }
 
@@ -125,5 +128,47 @@ public class LibraryScanner(IServiceScopeFactory scopeFactory, IThumbnailService
         }
 
         return video;
+    }
+
+    /// <summary>
+    /// Reads tag names from the video container's Comment field (semicolon-delimited)
+    /// and creates missing Tag records + VideoTag associations.
+    /// </summary>
+    private static async Task SyncContainerTagsAsync(VideoArchiveContext context, Video video, CancellationToken ct)
+    {
+        try
+        {
+            using var tagFile = TagLib.File.Create(video.FilePath);
+            var comment = tagFile.Tag.Comment;
+            if (string.IsNullOrWhiteSpace(comment)) return;
+
+            var tagNames = comment.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (tagNames.Length == 0) return;
+
+            foreach (var tagName in tagNames)
+            {
+                // Find or create the tag
+                var tag = await context.Tags.FirstOrDefaultAsync(t => t.Name == tagName, ct);
+                if (tag is null)
+                {
+                    tag = new Tag { Name = tagName };
+                    context.Tags.Add(tag);
+                    await context.SaveChangesAsync(ct);
+                }
+
+                // Link to video if not already linked
+                var exists = await context.VideoTags.AnyAsync(
+                    vt => vt.VideoId == video.Id && vt.TagId == tag.Id, ct);
+                if (!exists)
+                {
+                    context.VideoTags.Add(new VideoTag { VideoId = video.Id, TagId = tag.Id });
+                    await context.SaveChangesAsync(ct);
+                }
+            }
+        }
+        catch
+        {
+            // Container may not support comments — skip
+        }
     }
 }

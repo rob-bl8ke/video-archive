@@ -97,9 +97,10 @@ public sealed partial class DetailsView : UserControl
         }
     }
 
-    private void AddTagsMenuItem_Click(object sender, RoutedEventArgs e)
+    private async void AddTagsMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        // Tag management wired in Phase 8
+        if (ViewModel.SelectedVideo is null) return;
+        await ApplyTagsDialog.ShowAsync(this.XamlRoot, ViewModel.SelectedVideo);
     }
 
     private async void RemoveMenuItem_Click(object sender, RoutedEventArgs e)
