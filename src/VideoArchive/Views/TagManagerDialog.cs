@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
+using VideoArchive.Helpers;
 using VideoArchive.Models;
 using VideoArchive.Services;
 
@@ -138,7 +139,7 @@ public static class TagManagerDialog
             CloseButtonText = "Done",
         };
 
-        await dialog.ShowAsync();
+        await DialogHelper.ShowWithOverlayHiddenAsync(dialog);
     }
 
     private static SolidColorBrush ParseBrush(string? hex)

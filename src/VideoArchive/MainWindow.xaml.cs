@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Windowing;
 using VideoArchive.Data;
+using VideoArchive.Helpers;
 using VideoArchive.Models;
 using VideoArchive.Services;
 using VideoArchive.ViewModels;
@@ -44,6 +45,14 @@ public sealed partial class MainWindow : Window
                     ? new GridLength(2, GridUnitType.Star)
                     : new GridLength(0);
             }
+        };
+
+        // Disable Manage Tags button while video is playing
+        var playerVm = App.Services.GetRequiredService<VideoPlayerViewModel>();
+        playerVm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(VideoPlayerViewModel.IsPlaying))
+                ManageTagsButton.IsEnabled = !playerVm.IsPlaying;
         };
 
         // Select Library nav item by default
@@ -88,6 +97,12 @@ public sealed partial class MainWindow : Window
     /// Stops the player panel timer before LibVLC resources are disposed.
     /// </summary>
     public void ShutdownPlayer() => PlayerPanelControl.Shutdown();
+
+    /// <summary>Hide the native video overlay (call before showing a dialog).</summary>
+    public void HideVideoOverlay() => PlayerPanelControl.HideOverlay();
+
+    /// <summary>Show the native video overlay (call after a dialog closes).</summary>
+    public void ShowVideoOverlay() => PlayerPanelControl.ShowOverlay();
 
     private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
@@ -159,7 +174,7 @@ public sealed partial class MainWindow : Window
                 Content = "No library folders configured. Use the \"Add Library Folder\" button to add a video folder first.",
                 CloseButtonText = "OK",
             };
-            await noFolderDialog.ShowAsync();
+            await DialogHelper.ShowWithOverlayHiddenAsync(noFolderDialog);
             return;
         }
 
@@ -191,6 +206,7 @@ public sealed partial class MainWindow : Window
         var scanner = App.Services.GetRequiredService<ILibraryScanner>();
 
         // Show dialog and run scan concurrently
+        HideVideoOverlay();
         _ = progressDialog.ShowAsync();
 
         ScanResult? result = null;
@@ -209,7 +225,8 @@ public sealed partial class MainWindow : Window
                 Content = $"An error occurred during scanning:\n{ex.Message}",
                 CloseButtonText = "OK",
             };
-            await errorDialog.ShowAsync();
+            await DialogHelper.ShowWithOverlayHiddenAsync(errorDialog);
+            ShowVideoOverlay();
             return;
         }
 
@@ -232,8 +249,10 @@ public sealed partial class MainWindow : Window
                 Content = summary,
                 CloseButtonText = "OK",
             };
-            await summaryDialog.ShowAsync();
+            await DialogHelper.ShowWithOverlayHiddenAsync(summaryDialog);
         }
+
+        ShowVideoOverlay();
     }
 
     private async void ManageTagsButton_Click(object sender, RoutedEventArgs e)

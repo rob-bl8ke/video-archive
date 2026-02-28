@@ -2,6 +2,7 @@ using CommunityToolkit.WinUI.UI.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using VideoArchive.Helpers;
 using VideoArchive.Models;
 using VideoArchive.Services;
 using VideoArchive.ViewModels;
@@ -136,7 +137,7 @@ public sealed partial class DetailsView : UserControl
             DefaultButton = ContentDialogButton.Close,
         };
 
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        if (await DialogHelper.ShowWithOverlayHiddenAsync(dialog) == ContentDialogResult.Primary)
         {
             using var scope = App.Services.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IVideoRepository>();

@@ -167,6 +167,20 @@ public sealed partial class PlayerPanel : UserControl
         _videoWindow = null;
     }
 
+    /// <summary>
+    /// Temporarily hide the native video overlay (e.g. while a dialog is open).
+    /// </summary>
+    public void HideOverlay() => _videoWindow?.Hide();
+
+    /// <summary>
+    /// Restore the native video overlay after a dialog has closed.
+    /// </summary>
+    public void ShowOverlay()
+    {
+        if (Visibility == Visibility.Visible)
+            _videoWindow?.Show();
+    }
+
     private static IntPtr GetMainWindowHwnd()
     {
         foreach (var window in WindowHelper.ActiveWindows)

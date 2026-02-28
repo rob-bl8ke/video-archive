@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using VideoArchive.Data;
+using VideoArchive.Helpers;
 using VideoArchive.Models;
 using VideoArchive.Services;
 using VideoArchive.ViewModels;
@@ -125,6 +126,7 @@ public sealed partial class SettingsPage : UserControl
         });
 
         var scanner = App.Services.GetRequiredService<ILibraryScanner>();
+        DialogHelper.HideOverlay();
         _ = dialog.ShowAsync();
 
         try
@@ -145,6 +147,7 @@ public sealed partial class SettingsPage : UserControl
         }
 
         dialog.Hide();
+        DialogHelper.ShowOverlay();
         await ViewModel.LoadFoldersCommand.ExecuteAsync(null);
 
         // Reload video list in the shared MainViewModel so Library views update
@@ -186,6 +189,7 @@ public sealed partial class SettingsPage : UserControl
         });
 
         var thumbService = App.Services.GetRequiredService<IThumbnailService>();
+        DialogHelper.HideOverlay();
         _ = dialog.ShowAsync();
 
         try
@@ -203,6 +207,7 @@ public sealed partial class SettingsPage : UserControl
         }
 
         dialog.Hide();
+        DialogHelper.ShowOverlay();
     }
 
     private void ThemeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)

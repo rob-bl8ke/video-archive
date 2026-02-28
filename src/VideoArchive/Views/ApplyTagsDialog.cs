@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using VideoArchive.Helpers;
 using VideoArchive.Models;
 using VideoArchive.Services;
 
@@ -31,7 +32,7 @@ public static class ApplyTagsDialog
                 Content = "No tags have been created yet. Use \"Manage Tags\" to create tags first.",
                 CloseButtonText = "OK",
             };
-            await noTagsDialog.ShowAsync();
+            await DialogHelper.ShowWithOverlayHiddenAsync(noTagsDialog);
             return false;
         }
 
@@ -71,7 +72,7 @@ public static class ApplyTagsDialog
             DefaultButton = ContentDialogButton.Primary,
         };
 
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        if (await DialogHelper.ShowWithOverlayHiddenAsync(dialog) != ContentDialogResult.Primary)
             return false;
 
         // Apply changes

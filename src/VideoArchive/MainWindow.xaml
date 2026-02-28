@@ -82,7 +82,8 @@
 
                         <!-- Tag management -->
                         <AppBarSeparator />
-                        <Button Click="ManageTagsButton_Click"
+                        <Button x:Name="ManageTagsButton"
+                                Click="ManageTagsButton_Click"
                                 ToolTipService.ToolTip="Manage Tags"
                                 Padding="8">
                             <FontIcon Glyph="&#xE1CB;" FontSize="16" />
