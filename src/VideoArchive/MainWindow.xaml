@@ -64,7 +64,7 @@
                                       IsChecked="{x:Bind ViewModel.IsPlayerVisible, Mode=TwoWay}"
                                       ToolTipService.ToolTip="Show/Hide Player"
                                       Padding="8">
-                            <FontIcon Glyph="&#xE768;" FontSize="16" />
+                            <FontIcon Glyph="&#xE7B3;" FontSize="16" />
                         </ToggleButton>
 
                         <!-- Library management -->
