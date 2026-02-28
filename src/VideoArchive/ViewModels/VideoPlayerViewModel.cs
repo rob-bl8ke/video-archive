@@ -64,12 +64,27 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
             Position = 0;
         });
 
-        // Re-evaluate CanPlay when the gallery selection changes
+        // Re-evaluate CanPlay when the gallery selection changes,
+        // and stop playback when a different video is selected mid-play.
         var mainVm = App.Services.GetRequiredService<MainViewModel>();
         mainVm.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.HasSelection))
                 OnPropertyChanged(nameof(CanPlay));
+
+            if (e.PropertyName == nameof(MainViewModel.SelectedVideo)
+                && (State == PlaybackState.Playing || State == PlaybackState.Paused)
+                && mainVm.SelectedVideo is not null
+                && mainVm.SelectedVideo.Id != CurrentVideo?.Id)
+            {
+                // Different video selected while playing/paused → stop
+                Task.Run(() => _mediaPlayer.Stop());
+                _currentMedia?.Dispose();
+                _currentMedia = null;
+                CurrentVideo = null;
+                State = PlaybackState.Idle;
+                OnPropertyChanged(nameof(HasMedia));
+            }
         };
     }
 
