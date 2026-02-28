@@ -47,12 +47,16 @@ public sealed partial class MainWindow : Window
             }
         };
 
-        // Disable Manage Tags button while video is playing
+        // Disable library/tag toolbar buttons while video is playing
         var playerVm = App.Services.GetRequiredService<VideoPlayerViewModel>();
         playerVm.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(VideoPlayerViewModel.CanInteract))
+            {
+                AddFolderButton.IsEnabled = playerVm.CanInteract;
+                RefreshButton.IsEnabled = playerVm.CanInteract;
                 ManageTagsButton.IsEnabled = playerVm.CanInteract;
+            }
         };
 
         // Select Library nav item by default
