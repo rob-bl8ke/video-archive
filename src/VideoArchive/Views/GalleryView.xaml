@@ -38,98 +38,107 @@
                        TextAlignment="Center" />
         </StackPanel>
 
-        <ScrollViewer x:Name="GalleryScroller"
-                      HorizontalScrollBarVisibility="Disabled"
-                      VerticalScrollBarVisibility="Auto">
-            <ItemsRepeater x:Name="VideoRepeater"
-                           Margin="0,0,0,12">
-                <ItemsRepeater.Layout>
-                    <controls:UniformGridLayout MinItemWidth="220"
-                                                MinItemHeight="200"
-                                                MinColumnSpacing="8"
-                                                MinRowSpacing="8"
-                                                ItemsStretch="Fill" />
-                </ItemsRepeater.Layout>
-                <ItemsRepeater.ItemTemplate>
-                    <DataTemplate x:DataType="models:Video">
-                        <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                              BorderThickness="1"
-                              CornerRadius="4"
-                              Padding="0"
-                              PointerPressed="Card_PointerPressed"
-                              Tag="{x:Bind Id}">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="124" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
+        <GridView x:Name="VideoGrid"
+                  SelectionMode="Single"
+                  IsItemClickEnabled="True"
+                  ItemClick="VideoGrid_ItemClick"
+                  SelectionChanged="VideoGrid_SelectionChanged"
+                  Padding="0"
+                  Margin="0,0,0,12">
+            <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <controls:ItemsWrapGrid Orientation="Horizontal"
+                                            MaximumRowsOrColumns="20"
+                                            ItemWidth="240"
+                                            ItemHeight="220" />
+                </ItemsPanelTemplate>
+            </GridView.ItemsPanel>
+            <GridView.ItemContainerStyle>
+                <Style TargetType="GridViewItem">
+                    <Setter Property="Margin" Value="4" />
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="VerticalContentAlignment" Value="Stretch" />
+                    <Setter Property="BorderThickness" Value="3" />
+                    <Setter Property="BorderBrush" Value="Transparent" />
+                    <Setter Property="CornerRadius" Value="6" />
+                </Style>
+            </GridView.ItemContainerStyle>
+            <GridView.ItemTemplate>
+                <DataTemplate x:DataType="models:Video">
+                    <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                          CornerRadius="4"
+                          Padding="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="124" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
 
-                            <!-- Thumbnail with duration badge -->
-                            <Grid Grid.Row="0" Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}">
-                                <Image Source="{x:Bind ThumbnailPath, Converter={StaticResource ImageConverter}}"
-                                       Stretch="UniformToFill"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center" />
-                                <!-- Placeholder icon when no thumbnail -->
-                                <FontIcon Glyph="&#xE8B2;"
-                                          FontSize="36"
-                                          Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                          HorizontalAlignment="Center"
-                                          VerticalAlignment="Center"
-                                          Visibility="{x:Bind local:GalleryView.NoThumbnailVisibility(ThumbnailPath)}" />
+                        <!-- Thumbnail with duration badge -->
+                        <Grid Grid.Row="0" Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}">
+                            <Image Source="{x:Bind ThumbnailPath, Converter={StaticResource ImageConverter}}"
+                                   Stretch="UniformToFill"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                            <!-- Placeholder icon when no thumbnail -->
+                            <FontIcon Glyph="&#xE8B2;"
+                                      FontSize="36"
+                                      Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Visibility="{x:Bind local:GalleryView.NoThumbnailVisibility(ThumbnailPath)}" />
 
-                                <!-- Duration badge -->
-                                <Border Background="#CC000000"
-                                        CornerRadius="2"
-                                        Padding="4,2"
-                                        HorizontalAlignment="Right"
-                                        VerticalAlignment="Bottom"
-                                        Margin="0,0,6,6">
-                                    <TextBlock Text="{x:Bind Duration, Converter={StaticResource DurationConverter}}"
-                                               FontSize="11"
-                                               Foreground="White" />
-                                </Border>
-                            </Grid>
-
-                            <!-- Title + Tags -->
-                            <StackPanel Grid.Row="1" Padding="8,6,8,8" Spacing="4">
-                                <TextBlock Text="{x:Bind Title}"
-                                           Style="{ThemeResource BodyStrongTextBlockStyle}"
-                                           MaxLines="1"
-                                           TextTrimming="CharacterEllipsis" />
-
-                                <TextBlock FontSize="11"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                           MaxLines="1"
-                                           TextTrimming="CharacterEllipsis">
-                                    <Run Text="{x:Bind Format}" />
-                                    <Run Text=" · " />
-                                    <Run Text="{x:Bind Resolution}" />
-                                </TextBlock>
-
-                                <!-- Tag chips -->
-                                <ItemsRepeater ItemsSource="{x:Bind VideoTags}">
-                                    <ItemsRepeater.Layout>
-                                        <controls:StackLayout Orientation="Horizontal" Spacing="4" />
-                                    </ItemsRepeater.Layout>
-                                    <ItemsRepeater.ItemTemplate>
-                                        <DataTemplate x:DataType="models:VideoTag">
-                                            <Border Background="{x:Bind Tag.Color, Converter={StaticResource ColorBrushConverter}}"
-                                                    CornerRadius="8"
-                                                    Padding="6,2"
-                                                    Opacity="0.85">
-                                                <TextBlock Text="{x:Bind Tag.Name}"
-                                                           FontSize="10"
-                                                           Foreground="White" />
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsRepeater.ItemTemplate>
-                                </ItemsRepeater>
-                            </StackPanel>
+                            <!-- Duration badge -->
+                            <Border Background="#CC000000"
+                                    CornerRadius="2"
+                                    Padding="4,2"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Bottom"
+                                    Margin="0,0,6,6">
+                                <TextBlock Text="{x:Bind Duration, Converter={StaticResource DurationConverter}}"
+                                           FontSize="11"
+                                           Foreground="White" />
+                            </Border>
                         </Grid>
-                    </DataTemplate>
-                </ItemsRepeater.ItemTemplate>
-            </ItemsRepeater>
-        </ScrollViewer>
+
+                        <!-- Title + Tags -->
+                        <StackPanel Grid.Row="1" Padding="8,6,8,8" Spacing="4">
+                            <TextBlock Text="{x:Bind Title}"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                       MaxLines="1"
+                                       TextTrimming="CharacterEllipsis" />
+
+                            <TextBlock FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       MaxLines="1"
+                                       TextTrimming="CharacterEllipsis">
+                                <Run Text="{x:Bind Format}" />
+                                <Run Text=" · " />
+                                <Run Text="{x:Bind Resolution}" />
+                            </TextBlock>
+
+                            <!-- Tag chips -->
+                            <ItemsRepeater ItemsSource="{x:Bind VideoTags}">
+                                <ItemsRepeater.Layout>
+                                    <controls:StackLayout Orientation="Horizontal" Spacing="4" />
+                                </ItemsRepeater.Layout>
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="models:VideoTag">
+                                        <Border Background="{x:Bind Tag.Color, Converter={StaticResource ColorBrushConverter}}"
+                                                CornerRadius="8"
+                                                Padding="6,2"
+                                                Opacity="0.85">
+                                            <TextBlock Text="{x:Bind Tag.Name}"
+                                                       FontSize="10"
+                                                       Foreground="White" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </GridView.ItemTemplate>
+        </GridView>
     </Grid>
 </UserControl>

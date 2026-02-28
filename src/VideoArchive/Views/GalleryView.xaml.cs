@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using VideoArchive.Models;
 using VideoArchive.ViewModels;
 
 namespace VideoArchive.Views;
@@ -9,17 +11,26 @@ namespace VideoArchive.Views;
 public sealed partial class GalleryView : UserControl
 {
     private MainViewModel ViewModel { get; }
+    private GridViewItem? _previousSelectedContainer;
+    private static readonly SolidColorBrush SelectedBorderBrush = new(Colors.CornflowerBlue);
+    private static readonly SolidColorBrush TransparentBrush = new(Colors.Transparent);
 
     public GalleryView()
     {
         ViewModel = App.Services.GetRequiredService<MainViewModel>();
         this.InitializeComponent();
 
-        // Bind the repeater to the ViewModel's Videos collection
-        VideoRepeater.ItemsSource = ViewModel.Videos;
+        // Bind the GridView to the ViewModel's Videos collection
+        VideoGrid.ItemsSource = ViewModel.Videos;
 
         // Show/hide empty state
-        ViewModel.Videos.CollectionChanged += (_, _) => UpdateEmptyState();
+        ViewModel.Videos.CollectionChanged += (_, _) =>
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                UpdateEmptyState();
+            });
+        };
         UpdateEmptyState();
     }
 
@@ -27,18 +38,36 @@ public sealed partial class GalleryView : UserControl
     {
         var hasVideos = ViewModel.Videos.Count > 0;
         EmptyPanel.Visibility = hasVideos ? Visibility.Collapsed : Visibility.Visible;
-        GalleryScroller.Visibility = hasVideos ? Visibility.Visible : Visibility.Collapsed;
+        VideoGrid.Visibility = hasVideos ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void Card_PointerPressed(object sender, PointerRoutedEventArgs e)
+    private void VideoGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (sender is FrameworkElement fe && fe.Tag is int videoId)
+        // Clear previous selection highlight
+        if (_previousSelectedContainer is not null)
         {
-            var video = ViewModel.Videos.FirstOrDefault(v => v.Id == videoId);
-            if (video is not null)
+            _previousSelectedContainer.BorderBrush = TransparentBrush;
+            _previousSelectedContainer = null;
+        }
+
+        if (VideoGrid.SelectedItem is Video video)
+        {
+            ViewModel.SelectedVideo = video;
+
+            // Apply selection highlight to the container
+            if (VideoGrid.ContainerFromItem(video) is GridViewItem container)
             {
-                ViewModel.SelectedVideo = video;
+                container.BorderBrush = SelectedBorderBrush;
+                _previousSelectedContainer = container;
             }
+        }
+    }
+
+    private void VideoGrid_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is Video video)
+        {
+            ViewModel.SelectedVideo = video;
         }
     }
 
