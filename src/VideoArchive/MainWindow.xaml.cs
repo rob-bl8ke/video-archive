@@ -84,6 +84,11 @@ public sealed partial class MainWindow : Window
         _settings.WindowTop = appWindow.Position.Y;
     }
 
+    /// <summary>
+    /// Stops the player panel timer before LibVLC resources are disposed.
+    /// </summary>
+    public void ShutdownPlayer() => PlayerPanelControl.Shutdown();
+
     private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItemContainer?.Tag is string tag)

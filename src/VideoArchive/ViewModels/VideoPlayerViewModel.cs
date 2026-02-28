@@ -17,6 +17,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly DispatcherQueue _dispatcher;
     private Media? _currentMedia;
+    private volatile bool _disposed;
 
     public VideoPlayerViewModel(IServiceScopeFactory scopeFactory)
     {
@@ -74,7 +75,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     /// </summary>
     public void UpdateTimeline()
     {
-        if (_isSeeking || !_mediaPlayer.IsPlaying) return;
+        if (_disposed || _isSeeking || !_mediaPlayer.IsPlaying) return;
 
         Position = _mediaPlayer.Position;
 
@@ -107,6 +108,8 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void PlayPause()
     {
+        if (_disposed) return;
+
         // LibVLC Play/Pause must run off the UI thread to avoid deadlock.
         if (_mediaPlayer.IsPlaying)
         {
@@ -231,9 +234,17 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        _mediaPlayer.Stop();
-        _mediaPlayer.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+
+        // Stop on a thread-pool thread and wait, so the native player
+        // is idle before we tear down the objects it depends on.
+        try { Task.Run(() => _mediaPlayer.Stop()).Wait(TimeSpan.FromSeconds(2)); }
+        catch { /* timeout or already stopped */ }
+
         _currentMedia?.Dispose();
+        _currentMedia = null;
+        _mediaPlayer.Dispose();
         _libVLC.Dispose();
         GC.SuppressFinalize(this);
     }

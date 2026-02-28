@@ -156,6 +156,17 @@ public sealed partial class PlayerPanel : UserControl
         _videoWindow?.Hide();
     }
 
+    /// <summary>
+    /// Stop the update timer — must be called before disposing the ViewModel on shutdown.
+    /// </summary>
+    public void Shutdown()
+    {
+        _timer?.Stop();
+        _timer = null;
+        _videoWindow?.Dispose();
+        _videoWindow = null;
+    }
+
     private static IntPtr GetMainWindowHwnd()
     {
         foreach (var window in WindowHelper.ActiveWindows)

@@ -48,6 +48,10 @@ public partial class App : Application
         VideoArchive.Views.WindowHelper.TrackWindow(_window);
         _window.Closed += (_, _) =>
         {
+            // Stop the player timer before disposing LibVLC to prevent accessing freed objects
+            if (_window is MainWindow mw)
+                mw.ShutdownPlayer();
+
             // Dispose LibVLC resources on shutdown
             if (Services.GetService<VideoPlayerViewModel>() is IDisposable playerVm)
                 playerVm.Dispose();
