@@ -1,0 +1,42 @@
+# Build outputs
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# VS Code local settings
+.vscode/.browse.c_cpp.db*
+.vscode/settings.json
+
+# NuGet
+*.nupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# Rider / JetBrains
+.idea/
+
+# Visual Studio
+.vs/
+*.rsuser
+*.cache
+*.dbmdl
+*.jfm
+
+# Test results
+TestResults/
+
+# App data / thumbnails generated at runtime
+%AppData%/VideoArchive/

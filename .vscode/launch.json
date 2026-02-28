@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "VideoArchive: Launch",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}\\src\\VideoArchive\\bin\\x64\\Debug\\net9.0-windows10.0.19041.0\\VideoArchive.exe",
+      "cwd": "${workspaceFolder}\\src\\VideoArchive\\bin\\x64\\Debug\\net9.0-windows10.0.19041.0",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    },
+    {
+      "name": "VideoArchive: Attach",
+      "type": "coreclr",
+      "request": "attach",
+      "processId": "${command:pickProcess}"
+    }
+  ]
+}

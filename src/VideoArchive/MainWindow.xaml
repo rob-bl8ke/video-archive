@@ -1,0 +1,19 @@
+<Window
+    x:Class="VideoArchive.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:VideoArchive"
+    Title="Video Archive">
+
+    <Grid Padding="24">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+            <TextBlock Text="Video Archive"
+                       FontSize="28"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center" />
+            <TextBlock Text="WinUI 3 Desktop Application"
+                       FontSize="16"
+                       HorizontalAlignment="Center" />
+        </StackPanel>
+    </Grid>
+</Window>
