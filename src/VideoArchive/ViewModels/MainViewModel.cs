@@ -57,7 +57,6 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshLibraryAsync()
     {
-        // TODO: Wire to LibraryScanner in Phase 5
         await LoadVideosAsync();
     }
 }
