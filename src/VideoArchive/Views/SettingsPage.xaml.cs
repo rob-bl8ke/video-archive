@@ -129,8 +129,11 @@ public sealed partial class SettingsPage : UserControl
 
         try
         {
-            await Task.Run(() => scanner.ScanAsync(progress, cts.Token));
-            ViewModel.StatusText = "Library scan complete.";
+            var result = await Task.Run(() => scanner.ScanAsync(progress, cts.Token));
+            var summary = $"Scan complete — {result.NewVideos} added, {result.RemovedVideos} removed.";
+            if (result.Errors > 0)
+                summary += $" {result.Errors} file(s) had errors.";
+            ViewModel.StatusText = summary;
         }
         catch (OperationCanceledException)
         {

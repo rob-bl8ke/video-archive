@@ -26,7 +26,7 @@ public sealed partial class DetailsView : UserControl
     private void UpdateEmptyState()
     {
         var hasVideos = ViewModel.Videos.Count > 0;
-        EmptyText.Visibility = hasVideos ? Visibility.Collapsed : Visibility.Visible;
+        EmptyPanel.Visibility = hasVideos ? Visibility.Collapsed : Visibility.Visible;
         VideosGrid.Visibility = hasVideos ? Visibility.Visible : Visibility.Collapsed;
     }
 

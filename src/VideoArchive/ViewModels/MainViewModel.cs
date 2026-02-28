@@ -11,6 +11,7 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly IVideoRepository _videoRepository;
     private readonly ISettingsService _settings;
+    private List<Video> _allVideos = [];
 
     public MainViewModel(IVideoRepository videoRepository, ISettingsService settings)
     {
@@ -34,6 +35,11 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _searchText = string.Empty;
 
+    partial void OnSearchTextChanged(string value)
+    {
+        ApplySearchFilter();
+    }
+
     [RelayCommand]
     private void ToggleView()
     {
@@ -51,13 +57,30 @@ public partial class MainViewModel : ObservableObject
     private async Task LoadVideosAsync()
     {
         var videos = await _videoRepository.GetAllAsync();
-        Videos = new ObservableCollection<Video>(videos);
+        _allVideos = [.. videos];
+        ApplySearchFilter();
     }
 
     [RelayCommand]
     private async Task RefreshLibraryAsync()
     {
         await LoadVideosAsync();
+    }
+
+    private void ApplySearchFilter()
+    {
+        IEnumerable<Video> filtered = _allVideos;
+
+        if (!string.IsNullOrWhiteSpace(SearchText))
+        {
+            var term = SearchText.Trim();
+            filtered = _allVideos.Where(v =>
+                (v.Title?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (v.FilePath?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (v.Format?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        Videos = new ObservableCollection<Video>(filtered);
     }
 }
 #pragma warning restore MVVMTK0045

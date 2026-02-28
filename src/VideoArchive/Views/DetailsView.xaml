@@ -15,13 +15,28 @@
 
     <Grid Padding="12">
         <!-- Empty state -->
-        <TextBlock x:Name="EmptyText"
-                   Text="No videos yet — add a folder and click Refresh."
-                   Style="{ThemeResource BodyTextBlockStyle}"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                   VerticalAlignment="Center"
-                   HorizontalAlignment="Center"
-                   Visibility="Collapsed" />
+        <StackPanel x:Name="EmptyPanel"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Spacing="12"
+                    Visibility="Collapsed">
+            <FontIcon Glyph="&#xE8B7;"
+                      FontSize="48"
+                      Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                      HorizontalAlignment="Center" />
+            <TextBlock x:Name="EmptyText"
+                       Text="No videos yet — add a folder and click Refresh to get started."
+                       Style="{ThemeResource SubtitleTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center" />
+            <TextBlock x:Name="EmptyHint"
+                       Text="Use the toolbar above or go to Settings to add library folders."
+                       Style="{ThemeResource BodyTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center" />
+        </StackPanel>
 
         <controls:DataGrid x:Name="VideosGrid"
                            AutoGenerateColumns="False"

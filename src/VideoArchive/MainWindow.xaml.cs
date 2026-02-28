@@ -2,21 +2,31 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Windowing;
 using VideoArchive.Data;
 using VideoArchive.Models;
 using VideoArchive.Services;
 using VideoArchive.ViewModels;
+using Windows.Graphics;
 
 namespace VideoArchive;
 
 public sealed partial class MainWindow : Window
 {
     public MainViewModel ViewModel { get; }
+    private readonly ISettingsService _settings;
 
     public MainWindow()
     {
         ViewModel = App.Services.GetRequiredService<MainViewModel>();
+        _settings = App.Services.GetRequiredService<ISettingsService>();
         this.InitializeComponent();
+
+        // Restore window size and position
+        RestoreWindowPlacement();
+
+        // Save window placement on close
+        this.Closed += MainWindow_Closed;
 
         // React to view mode changes
         ViewModel.PropertyChanged += (s, e) =>
@@ -33,6 +43,29 @@ public sealed partial class MainWindow : Window
         NavView.SelectedItem = NavView.MenuItems[0];
         DetailsToggle.IsChecked = !ViewModel.IsGalleryView;
         UpdateViewVisibility();
+    }
+
+    private void RestoreWindowPlacement()
+    {
+        var width = (int)_settings.WindowWidth;
+        var height = (int)_settings.WindowHeight;
+        var left = (int)_settings.WindowLeft;
+        var top = (int)_settings.WindowTop;
+
+        if (width > 100 && height > 100)
+        {
+            var appWindow = this.AppWindow;
+            appWindow.MoveAndResize(new RectInt32(left, top, width, height));
+        }
+    }
+
+    private void MainWindow_Closed(object sender, WindowEventArgs args)
+    {
+        var appWindow = this.AppWindow;
+        _settings.WindowWidth = appWindow.Size.Width;
+        _settings.WindowHeight = appWindow.Size.Height;
+        _settings.WindowLeft = appWindow.Position.X;
+        _settings.WindowTop = appWindow.Position.Y;
     }
 
     private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -139,9 +172,10 @@ public sealed partial class MainWindow : Window
         // Show dialog and run scan concurrently
         _ = progressDialog.ShowAsync();
 
+        ScanResult? result = null;
         try
         {
-            await Task.Run(() => scanner.ScanAsync(progress, cts.Token));
+            result = await Task.Run(() => scanner.ScanAsync(progress, cts.Token));
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -162,10 +196,40 @@ public sealed partial class MainWindow : Window
 
         // Reload video list
         await ViewModel.LoadVideosCommand.ExecuteAsync(null);
+
+        // Show scan summary
+        if (result is not null)
+        {
+            var summary = $"Added {result.NewVideos} video(s), removed {result.RemovedVideos}.";
+            if (result.Errors > 0)
+                summary += $"\n{result.Errors} file(s) could not be read (corrupted or unsupported format).";
+
+            var summaryDialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                Title = "Scan Complete",
+                Content = summary,
+                CloseButtonText = "OK",
+            };
+            await summaryDialog.ShowAsync();
+        }
     }
 
     private async void ManageTagsButton_Click(object sender, RoutedEventArgs e)
     {
         await VideoArchive.Views.TagManagerDialog.ShowAsync(Content.XamlRoot);
+    }
+
+    private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+        {
+            ViewModel.SearchText = sender.Text;
+        }
+    }
+
+    private void SearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        ViewModel.SearchText = args.QueryText ?? string.Empty;
     }
 }

@@ -10,10 +10,10 @@ public class LibraryScanner(IServiceScopeFactory scopeFactory, IThumbnailService
     private static readonly string[] VideoExtensions = [".mp4", ".mkv"];
     private readonly SemaphoreSlim _scanLock = new(1, 1);
 
-    public async Task ScanAsync(IProgress<(int current, int total)>? progress = null, CancellationToken cancellationToken = default)
+    public async Task<ScanResult> ScanAsync(IProgress<(int current, int total)>? progress = null, CancellationToken cancellationToken = default)
     {
         if (!await _scanLock.WaitAsync(0, cancellationToken))
-            return; // Already scanning
+            return new ScanResult(0, 0, 0); // Already scanning
 
         try
         {
@@ -25,7 +25,7 @@ public class LibraryScanner(IServiceScopeFactory scopeFactory, IThumbnailService
                 .Where(f => f.IsActive)
                 .ToListAsync(cancellationToken);
 
-            if (folders.Count == 0) return;
+            if (folders.Count == 0) return new ScanResult(0, 0, 0);
 
             // Collect all video files from all folders
             var allFiles = new List<string>();
@@ -53,7 +53,8 @@ public class LibraryScanner(IServiceScopeFactory scopeFactory, IThumbnailService
             var allFileSet = new HashSet<string>(allFiles, StringComparer.OrdinalIgnoreCase);
             var removedVideos = existingVideos.Where(v => !allFileSet.Contains(v.FilePath)).ToList();
 
-            if (removedVideos.Count > 0)
+            var removedCount = removedVideos.Count;
+            if (removedCount > 0)
             {
                 context.Videos.RemoveRange(removedVideos);
                 await context.SaveChangesAsync(cancellationToken);
@@ -61,24 +62,34 @@ public class LibraryScanner(IServiceScopeFactory scopeFactory, IThumbnailService
 
             // Process new videos
             var total = newFiles.Count;
+            int errorCount = 0;
             for (int i = 0; i < newFiles.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var video = ExtractMetadata(newFiles[i]);
-                context.Videos.Add(video);
-                await context.SaveChangesAsync(cancellationToken);
-
-                // Generate thumbnail (video.Id is set after SaveChanges)
                 try
                 {
-                    await thumbnailService.GenerateAsync(video.Id, video.FilePath, cancellationToken);
+                    var video = ExtractMetadata(newFiles[i]);
+                    context.Videos.Add(video);
+                    await context.SaveChangesAsync(cancellationToken);
+
+                    // Generate thumbnail (video.Id is set after SaveChanges)
+                    try
+                    {
+                        await thumbnailService.GenerateAsync(video.Id, video.FilePath, cancellationToken);
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch { /* thumbnail failed — continue without */ }
+
+                    // Read tags from container and sync to DB
+                    await SyncContainerTagsAsync(context, video, cancellationToken);
                 }
                 catch (OperationCanceledException) { throw; }
-                catch { /* thumbnail failed — continue without */ }
-
-                // Read tags from container and sync to DB
-                await SyncContainerTagsAsync(context, video, cancellationToken);
+                catch
+                {
+                    // Corrupted or unreadable file — skip and count
+                    errorCount++;
+                }
 
                 progress?.Report((i + 1, total));
             }
@@ -89,6 +100,8 @@ public class LibraryScanner(IServiceScopeFactory scopeFactory, IThumbnailService
                 folder.LastScanned = DateTime.UtcNow;
             }
             await context.SaveChangesAsync(cancellationToken);
+
+            return new ScanResult(total - errorCount, removedCount, errorCount);
         }
         finally
         {

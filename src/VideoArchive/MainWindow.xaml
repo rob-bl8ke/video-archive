@@ -39,7 +39,9 @@
                                         PlaceholderText="Search videos..."
                                         QueryIcon="Find"
                                         Width="250"
-                                        VerticalAlignment="Center" />
+                                        VerticalAlignment="Center"
+                                        TextChanged="SearchBox_TextChanged"
+                                        QuerySubmitted="SearchBox_QuerySubmitted" />
 
                         <!-- View toggle -->
                         <AppBarSeparator />
