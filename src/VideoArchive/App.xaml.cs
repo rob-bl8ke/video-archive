@@ -31,7 +31,7 @@ public partial class App : Application
 
         // ViewModels
         services.AddTransient<MainViewModel>();
-        services.AddTransient<VideoPlayerViewModel>();
+        services.AddSingleton<VideoPlayerViewModel>();
         services.AddTransient<SettingsViewModel>();
 
         Services = services.BuildServiceProvider();
@@ -45,6 +45,15 @@ public partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         _window = new MainWindow();
+        VideoArchive.Views.WindowHelper.TrackWindow(_window);
+        _window.Closed += (_, _) =>
+        {
+            // Dispose LibVLC resources on shutdown
+            if (Services.GetService<VideoPlayerViewModel>() is IDisposable playerVm)
+                playerVm.Dispose();
+            if (Services.GetService<IThumbnailService>() is IDisposable thumbSvc)
+                thumbSvc.Dispose();
+        };
         _window.Activate();
     }
 }
