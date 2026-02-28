@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -15,6 +16,50 @@ public sealed partial class PlayerPanel : UserControl
     private NativeVideoWindow? _videoWindow;
     private DispatcherQueueTimer? _timer;
     private bool _sliderDragging;
+    private bool _isFullscreen;
+
+    // Win32 subclass for immediate popup repositioning on window move/resize
+    private static IntPtr _originalWndProc;
+    private static WndProcDelegate? _subclassDelegate;
+    private static PlayerPanel? _activeInstance;
+
+    private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr SetWindowLongPtrW(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr CallWindowProcW(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetMonitorInfoW(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int vKey);
+
+    private const int VK_ESCAPE = 0x1B;
+    private const int GWLP_WNDPROC = -4;
+    private const uint WM_WINDOWPOSCHANGED = 0x0047;
+    private const uint WM_ACTIVATE = 0x0006;
+    private const uint MONITOR_DEFAULTTONEAREST = 2;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int Left, Top, Right, Bottom;
+    }
 
     public PlayerPanel()
     {
@@ -37,14 +82,12 @@ public sealed partial class PlayerPanel : UserControl
         this.Loaded += PlayerPanel_Loaded;
         this.Unloaded += PlayerPanel_Unloaded;
 
-        // When the panel toggles from Collapsed → Visible, we need to
-        // re-create/reposition the native video window after layout completes.
+        // When the panel toggles from Collapsed → Visible, reposition after layout
         this.RegisterPropertyChangedCallback(VisibilityProperty, (_, _) =>
         {
             if (Visibility == Visibility.Visible)
             {
-                // Defer to next layout pass so ActualWidth/Height are populated
-                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
                 {
                     EnsureVideoWindow();
                     PositionVideoWindow();
@@ -66,14 +109,39 @@ public sealed partial class PlayerPanel : UserControl
 
         _videoWindow = new NativeVideoWindow(parentHwnd);
         ViewModel.MediaPlayer.Hwnd = _videoWindow.Hwnd;
+
+        // Subclass the main window for immediate repositioning
+        InstallSubclass(parentHwnd);
+    }
+
+    private void InstallSubclass(IntPtr hwnd)
+    {
+        if (_originalWndProc != IntPtr.Zero) return; // Already installed
+
+        _activeInstance = this;
+        _subclassDelegate = SubclassWndProc;
+        _originalWndProc = SetWindowLongPtrW(hwnd, GWLP_WNDPROC,
+            Marshal.GetFunctionPointerForDelegate(_subclassDelegate));
+    }
+
+    private static IntPtr SubclassWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+    {
+        // When the main window moves or resizes, immediately reposition the popup
+        if (msg == WM_WINDOWPOSCHANGED && _activeInstance is not null)
+        {
+            _activeInstance.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.High, () =>
+            {
+                _activeInstance.PositionVideoWindow();
+            });
+        }
+
+        return CallWindowProcW(_originalWndProc, hWnd, msg, wParam, lParam);
     }
 
     private void PlayerPanel_Loaded(object sender, RoutedEventArgs e)
     {
-        // Create native child window for video rendering (may be collapsed, that's OK)
         EnsureVideoWindow();
 
-        // Start timeline update timer (10fps)
         _timer = DispatcherQueue.CreateTimer();
         _timer.Interval = TimeSpan.FromMilliseconds(100);
         _timer.Tick += Timer_Tick;
@@ -90,48 +158,44 @@ public sealed partial class PlayerPanel : UserControl
 
     private static IntPtr GetMainWindowHwnd()
     {
-        // Get HWND from the first active window
         foreach (var window in WindowHelper.ActiveWindows)
-        {
             return WinRT.Interop.WindowNative.GetWindowHandle(window);
-        }
         return IntPtr.Zero;
     }
 
     private void Timer_Tick(DispatcherQueueTimer sender, object args)
     {
+        // Poll Escape key to exit fullscreen (works regardless of which window has focus)
+        if (_isFullscreen && (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0)
+        {
+            ToggleFullscreen();
+            return;
+        }
+
         ViewModel.UpdateTimeline();
 
         if (!_sliderDragging)
-        {
             SeekSlider.Value = ViewModel.Position;
-        }
 
         CurrentTimeText.Text = ViewModel.CurrentTimeText;
         TotalTimeText.Text = ViewModel.TotalTimeText;
-
-        // Popup windows don't auto-follow the main window,
-        // so reposition every tick to track window moves/resizes
-        if (ViewModel.CurrentVideo is not null && Visibility == Visibility.Visible)
-            PositionVideoWindow();
     }
 
     private void VideoSurface_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        PositionVideoWindow();
+        if (!_isFullscreen)
+            PositionVideoWindow();
     }
 
     private void PositionVideoWindow()
     {
-        if (_videoWindow is null) return;
+        if (_videoWindow is null || _isFullscreen) return;
 
         try
         {
-            // Get the position of VideoSurface relative to the window
             var transform = VideoSurface.TransformToVisual(null);
             var point = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
 
-            // Account for DPI scaling
             var scale = GetDpiScale();
             var x = (int)(point.X * scale);
             var y = (int)(point.Y * scale);
@@ -149,6 +213,55 @@ public sealed partial class PlayerPanel : UserControl
         catch { /* Transform may fail during layout transitions */ }
     }
 
+    // ── Fullscreen ───────────────────────────────────────────────────
+    private void Fullscreen_Click(object sender, RoutedEventArgs e) => ToggleFullscreen();
+
+    private void VideoSurface_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => ToggleFullscreen();
+
+    public void ToggleFullscreen()
+    {
+        if (_videoWindow is null) return;
+
+        _isFullscreen = !_isFullscreen;
+
+        if (_isFullscreen)
+        {
+            // Get the monitor rect for the main window
+            var hwnd = GetMainWindowHwnd();
+            var monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            GetMonitorInfoW(monitor, ref mi);
+
+            _videoWindow.SetScreenBounds(
+                mi.rcMonitor.Left, mi.rcMonitor.Top,
+                mi.rcMonitor.Right - mi.rcMonitor.Left,
+                mi.rcMonitor.Bottom - mi.rcMonitor.Top);
+            _videoWindow.Show();
+
+            FullscreenIcon.Glyph = "\uE73F"; // Exit fullscreen icon
+
+            // Grab focus so OnKeyDown also works as a second path
+            this.IsTabStop = true;
+            this.Focus(FocusState.Programmatic);
+        }
+        else
+        {
+            FullscreenIcon.Glyph = "\uE740"; // Enter fullscreen icon
+            PositionVideoWindow();
+        }
+    }
+
+    // Handle Escape key to exit fullscreen
+    protected override void OnKeyDown(KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Escape && _isFullscreen)
+        {
+            ToggleFullscreen();
+            e.Handled = true;
+        }
+        base.OnKeyDown(e);
+    }
+
     private double GetDpiScale()
     {
         var hwnd = GetMainWindowHwnd();
@@ -164,7 +277,7 @@ public sealed partial class PlayerPanel : UserControl
     private void PlayPause_Click(object sender, RoutedEventArgs e)
     {
         ViewModel.PlayPauseCommand.Execute(null);
-        PositionVideoWindow(); // Ensure video window is visible
+        PositionVideoWindow();
     }
 
     private void Stop_Click(object sender, RoutedEventArgs e)
@@ -188,9 +301,7 @@ public sealed partial class PlayerPanel : UserControl
     private void SeekSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
         if (_sliderDragging)
-        {
             ViewModel.Position = e.NewValue;
-        }
     }
 
     private void VolumeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
@@ -199,10 +310,7 @@ public sealed partial class PlayerPanel : UserControl
     }
 
     // Segment handlers
-    private void AddSegment_Click(object sender, RoutedEventArgs e)
-    {
-        ViewModel.AddSegmentCommand.Execute(null);
-    }
+    private void AddSegment_Click(object sender, RoutedEventArgs e) => ViewModel.AddSegmentCommand.Execute(null);
 
     private void SetStartTime_Click(object sender, RoutedEventArgs e)
     {
@@ -231,8 +339,7 @@ public sealed partial class PlayerPanel : UserControl
         EnsureVideoWindow();
         ViewModel.Play(video);
 
-        // Defer positioning to after the layout pass so VideoSurface has real dimensions
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {
             PositionVideoWindow();
         });
@@ -240,7 +347,7 @@ public sealed partial class PlayerPanel : UserControl
 
     private static class NativeMethods
     {
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [DllImport("user32.dll")]
         public static extern uint GetDpiForWindow(IntPtr hwnd);
     }
 }

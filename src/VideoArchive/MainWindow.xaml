@@ -94,8 +94,8 @@
             <!-- Content area -->
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" MinHeight="150" />
+                    <RowDefinition x:Name="PlayerRow" Height="0" />
                 </Grid.RowDefinitions>
 
                 <!-- Library / Settings content -->

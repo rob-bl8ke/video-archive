@@ -37,6 +37,13 @@ public sealed partial class MainWindow : Window
                 // Keep toggle buttons in sync
                 DetailsToggle.IsChecked = !ViewModel.IsGalleryView;
             }
+            if (e.PropertyName == nameof(MainViewModel.IsPlayerVisible))
+            {
+                // Resize the player row when the panel toggles
+                PlayerRow.Height = ViewModel.IsPlayerVisible
+                    ? new GridLength(2, GridUnitType.Star)
+                    : new GridLength(0);
+            }
         };
 
         // Select Library nav item by default

@@ -145,6 +145,15 @@ public sealed class NativeVideoWindow : IDisposable
         SetWindowPos(_hwnd, IntPtr.Zero, pt.X, pt.Y, width, height, SWP_NOACTIVATE | SWP_NOZORDER);
     }
 
+    /// <summary>
+    /// Position the popup using absolute screen coordinates (for fullscreen mode).
+    /// </summary>
+    public void SetScreenBounds(int screenX, int screenY, int width, int height)
+    {
+        if (_hwnd == IntPtr.Zero) return;
+        SetWindowPos(_hwnd, IntPtr.Zero, screenX, screenY, width, height, SWP_NOACTIVATE | SWP_NOZORDER);
+    }
+
     public void Show() => ShowWindow(_hwnd, SW_SHOWNOACTIVATE);
     public void Hide() => ShowWindow(_hwnd, SW_HIDE);
 

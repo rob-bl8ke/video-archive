@@ -22,12 +22,13 @@
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
-        <!-- Video surface area (native child window renders here) -->
+        <!-- Video surface area (native popup window renders on top of this) -->
         <Border x:Name="VideoSurface"
                 Grid.Row="0" Grid.Column="0"
                 Background="Black"
                 MinHeight="180"
-                SizeChanged="VideoSurface_SizeChanged">
+                SizeChanged="VideoSurface_SizeChanged"
+                DoubleTapped="VideoSurface_DoubleTapped">
             <!-- "No video" placeholder -->
             <StackPanel x:Name="NoVideoPlaceholder"
                         HorizontalAlignment="Center"
@@ -185,6 +186,16 @@
                     Value="80"
                     ValueChanged="VolumeSlider_ValueChanged"
                     VerticalAlignment="Center" />
+
+            <AppBarSeparator />
+
+            <!-- Fullscreen toggle -->
+            <Button x:Name="FullscreenButton"
+                    Click="Fullscreen_Click"
+                    ToolTipService.ToolTip="Fullscreen (double-click video or press Escape to exit)"
+                    Padding="8">
+                <FontIcon x:Name="FullscreenIcon" Glyph="&#xE740;" FontSize="16" />
+            </Button>
         </StackPanel>
     </Grid>
 </UserControl>
