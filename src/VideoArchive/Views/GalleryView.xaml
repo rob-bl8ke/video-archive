@@ -40,8 +40,6 @@
 
         <GridView x:Name="VideoGrid"
                   SelectionMode="Single"
-                  IsItemClickEnabled="True"
-                  ItemClick="VideoGrid_ItemClick"
                   SelectionChanged="VideoGrid_SelectionChanged"
                   Padding="0"
                   Margin="0,0,0,12">

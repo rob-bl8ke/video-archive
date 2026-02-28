@@ -131,6 +131,11 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     {
         // Stop must be called from a thread pool thread to avoid deadlock
         Task.Run(() => _mediaPlayer.Stop());
+
+        // Clear the current media so PlayPause will pick up the newly selected video
+        _currentMedia?.Dispose();
+        _currentMedia = null;
+        CurrentVideo = null;
     }
 
     public void Play(Video video)

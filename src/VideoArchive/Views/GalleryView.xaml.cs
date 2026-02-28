@@ -63,14 +63,6 @@ public sealed partial class GalleryView : UserControl
         }
     }
 
-    private void VideoGrid_ItemClick(object sender, ItemClickEventArgs e)
-    {
-        if (e.ClickedItem is Video video)
-        {
-            ViewModel.SelectedVideo = video;
-        }
-    }
-
     /// <summary>
     /// Helper for x:Bind — returns Visible when ThumbnailPath is null/empty or file doesn't exist.
     /// </summary>
