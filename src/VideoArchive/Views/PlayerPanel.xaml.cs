@@ -93,6 +93,14 @@ public sealed partial class PlayerPanel : UserControl
                 {
                     EnsureVideoWindow();
                     PositionVideoWindow();
+
+                    // Preview the selected video's first frame when the panel becomes visible
+                    var mainVm = App.Services.GetRequiredService<MainViewModel>();
+                    if (mainVm.SelectedVideo is not null
+                        && mainVm.SelectedVideo.Id != ViewModel.CurrentVideo?.Id)
+                    {
+                        ViewModel.Preview(mainVm.SelectedVideo);
+                    }
                 });
             }
             else

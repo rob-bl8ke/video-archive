@@ -41,6 +41,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     private readonly DispatcherQueue _dispatcher;
     private Media? _currentMedia;
     private volatile bool _disposed;
+    private volatile bool _isPreviewing;
 
     public VideoPlayerViewModel(IServiceScopeFactory scopeFactory)
     {
@@ -50,7 +51,25 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         _mediaPlayer = new MediaPlayer(_libVLC);
 
         // LibVLC events fire on background threads — marshal state transitions to UI thread
-        _mediaPlayer.Playing += (_, _) => _dispatcher.TryEnqueue(() => State = PlaybackState.Playing);
+        _mediaPlayer.Playing += (_, _) =>
+        {
+            // If we're previewing, pause after a brief delay so LibVLC has time
+            // to decode and render the first frame. Pausing immediately in the
+            // Playing event results in a blank surface because no frame has been
+            // pushed to the video output yet.
+            if (_isPreviewing)
+            {
+                _isPreviewing = false;
+                Task.Run(async () =>
+                {
+                    await Task.Delay(200);
+                    if (!_disposed)
+                        _mediaPlayer.Pause();
+                });
+                return;
+            }
+            _dispatcher.TryEnqueue(() => State = PlaybackState.Playing);
+        };
         _mediaPlayer.Paused += (_, _) => _dispatcher.TryEnqueue(() => State = PlaybackState.Paused);
         _mediaPlayer.Stopped += (_, _) => _dispatcher.TryEnqueue(() =>
         {
@@ -73,17 +92,12 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(CanPlay));
 
             if (e.PropertyName == nameof(MainViewModel.SelectedVideo)
-                && (State == PlaybackState.Playing || State == PlaybackState.Paused)
+                && mainVm.IsPlayerVisible
                 && mainVm.SelectedVideo is not null
                 && mainVm.SelectedVideo.Id != CurrentVideo?.Id)
             {
-                // Different video selected while playing/paused → stop
-                Task.Run(() => _mediaPlayer.Stop());
-                _currentMedia?.Dispose();
-                _currentMedia = null;
-                CurrentVideo = null;
-                State = PlaybackState.Idle;
-                OnPropertyChanged(nameof(HasMedia));
+                // Different video selected while player is visible → preview first frame
+                Preview(mainVm.SelectedVideo);
             }
         };
     }
@@ -244,6 +258,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
     public void Play(Video video)
     {
+        _isPreviewing = false;
         CurrentVideo = video;
         NowPlayingTitle = video.Title ?? Path.GetFileNameWithoutExtension(video.FilePath);
 
@@ -253,6 +268,34 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         _mediaPlayer.Volume = Volume;
 
         // Play on thread pool — LibVLC can block the UI thread while opening media
+        Task.Run(() => _mediaPlayer.Play());
+
+        LoadSegments(video.Id);
+    }
+
+    /// <summary>
+    /// Loads a video and pauses on the first frame (preview mode).
+    /// Shows the first frame without starting continuous playback.
+    /// </summary>
+    public void Preview(Video video)
+    {
+        if (_disposed) return;
+
+        // Cancel any in-flight preview before starting a new one
+        _isPreviewing = false;
+
+        CurrentVideo = video;
+        NowPlayingTitle = video.Title ?? Path.GetFileNameWithoutExtension(video.FilePath);
+
+        _currentMedia?.Dispose();
+        _currentMedia = new Media(_libVLC, video.FilePath, FromType.FromPath);
+        _mediaPlayer.Media = _currentMedia;
+        _mediaPlayer.Volume = Volume;
+
+        // Set flag so the Playing event handler will auto-pause on first frame.
+        // Assigning new Media + calling Play() causes LibVLC to stop internally,
+        // so no explicit Stop() call is needed.
+        _isPreviewing = true;
         Task.Run(() => _mediaPlayer.Play());
 
         LoadSegments(video.Id);
