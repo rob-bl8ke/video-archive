@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LibVLCSharp.Shared;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Dispatching;
 using VideoArchive.Data;
 using VideoArchive.Models;
 
@@ -14,27 +15,30 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     private readonly LibVLC _libVLC;
     private readonly MediaPlayer _mediaPlayer;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly DispatcherQueue _dispatcher;
     private Media? _currentMedia;
 
     public VideoPlayerViewModel(IServiceScopeFactory scopeFactory)
     {
         _scopeFactory = scopeFactory;
+        _dispatcher = DispatcherQueue.GetForCurrentThread();
         _libVLC = new LibVLC("--no-video-title-show");
         _mediaPlayer = new MediaPlayer(_libVLC);
 
-        _mediaPlayer.Playing += (_, _) => IsPlaying = true;
-        _mediaPlayer.Paused += (_, _) => IsPlaying = false;
-        _mediaPlayer.Stopped += (_, _) =>
+        // LibVLC events fire on background threads — must marshal to UI thread
+        _mediaPlayer.Playing += (_, _) => _dispatcher.TryEnqueue(() => IsPlaying = true);
+        _mediaPlayer.Paused += (_, _) => _dispatcher.TryEnqueue(() => IsPlaying = false);
+        _mediaPlayer.Stopped += (_, _) => _dispatcher.TryEnqueue(() =>
         {
             IsPlaying = false;
             Position = 0;
             CurrentTimeText = "--:--";
-        };
-        _mediaPlayer.EndReached += (_, _) =>
+        });
+        _mediaPlayer.EndReached += (_, _) => _dispatcher.TryEnqueue(() =>
         {
             IsPlaying = false;
             Position = 0;
-        };
+        });
     }
 
     public MediaPlayer MediaPlayer => _mediaPlayer;
@@ -103,10 +107,23 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void PlayPause()
     {
+        // LibVLC Play/Pause must run off the UI thread to avoid deadlock.
         if (_mediaPlayer.IsPlaying)
-            _mediaPlayer.Pause();
-        else if (_mediaPlayer.Media is not null)
-            _mediaPlayer.Play();
+        {
+            Task.Run(() => _mediaPlayer.Pause());
+        }
+        else if (_currentMedia is not null)
+        {
+            // Resume existing media
+            Task.Run(() => _mediaPlayer.Play());
+        }
+        else
+        {
+            // No media loaded yet — play the currently selected video
+            var mainVm = App.Services.GetRequiredService<MainViewModel>();
+            if (mainVm.SelectedVideo is not null)
+                Play(mainVm.SelectedVideo);
+        }
     }
 
     [RelayCommand]
@@ -125,7 +142,9 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         _currentMedia = new Media(_libVLC, video.FilePath, FromType.FromPath);
         _mediaPlayer.Media = _currentMedia;
         _mediaPlayer.Volume = Volume;
-        _mediaPlayer.Play();
+
+        // Play on thread pool — LibVLC can block the UI thread while opening media
+        Task.Run(() => _mediaPlayer.Play());
 
         LoadSegments(video.Id);
     }

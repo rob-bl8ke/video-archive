@@ -3,16 +3,18 @@ using System.Runtime.InteropServices;
 namespace VideoArchive.Interop;
 
 /// <summary>
-/// Creates and manages a Win32 child window that LibVLC can render video into.
-/// This is necessary because WinUI 3 does not expose per-element HWNDs,
-/// so we create a native child window and position it over a placeholder element.
+/// Creates and manages an owned popup window that LibVLC can render video into.
+/// WinUI 3 renders XAML via DirectComposition which sits above traditional Win32
+/// child windows, so we must use WS_POPUP (not WS_CHILD) to appear on top.
+/// The popup is owned by the main window so it stays in front and moves with it.
 /// </summary>
 public sealed class NativeVideoWindow : IDisposable
 {
-    private const string ClassName = "LibVLCVideoChild";
+    private const string ClassName = "LibVLCVideoPopup";
     private static bool _classRegistered;
     private IntPtr _hwnd;
     private readonly WndProcDelegate _wndProcDelegate;
+    private readonly IntPtr _ownerHwnd;
 
     // P/Invoke declarations
     private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
@@ -45,14 +47,19 @@ public sealed class NativeVideoWindow : IDisposable
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr GetModuleHandleW(string? lpModuleName);
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+
     // Window styles
-    private const uint WS_CHILD = 0x40000000;
-    private const uint WS_VISIBLE = 0x10000000;
+    private const uint WS_POPUP = 0x80000000;
     private const uint WS_CLIPSIBLINGS = 0x04000000;
     private const uint WS_CLIPCHILDREN = 0x02000000;
-    private const uint SWP_NOZORDER = 0x0004;
+    private const uint WS_EX_NOACTIVATE = 0x08000000;
+    private const uint WS_EX_TOOLWINDOW = 0x00000080; // Hide from taskbar/Alt+Tab
     private const uint SWP_NOACTIVATE = 0x0010;
-    private const int SW_SHOW = 5;
+    private const uint SWP_NOZORDER = 0x0004;
+    private const int SW_SHOWNOACTIVATE = 8;
     private const int SW_HIDE = 0;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -70,22 +77,31 @@ public sealed class NativeVideoWindow : IDisposable
         public string lpszClassName;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
     public IntPtr Hwnd => _hwnd;
 
-    public NativeVideoWindow(IntPtr parentHwnd)
+    public NativeVideoWindow(IntPtr ownerHwnd)
     {
+        _ownerHwnd = ownerHwnd;
         // Must keep delegate alive to prevent GC collection
         _wndProcDelegate = WndProc;
 
         EnsureClassRegistered();
 
+        // Create as an owned popup — appears above WinUI 3 composition layer
         _hwnd = CreateWindowExW(
-            0,
+            WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
             ClassName,
             "LibVLC Video Surface",
-            WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
-            0, 0, 1, 1, // Initial size — will be repositioned
-            parentHwnd,
+            WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
+            0, 0, 1, 1,
+            ownerHwnd, // Owner window (not parent — this is a popup)
             IntPtr.Zero,
             GetModuleHandleW(null),
             IntPtr.Zero);
@@ -100,7 +116,7 @@ public sealed class NativeVideoWindow : IDisposable
             style = 0,
             lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_wndProcDelegate),
             hInstance = GetModuleHandleW(null),
-            hbrBackground = IntPtr.Zero, // Black background (NULL brush = no erase)
+            hbrBackground = IntPtr.Zero,
             lpszClassName = ClassName,
         };
 
@@ -114,16 +130,22 @@ public sealed class NativeVideoWindow : IDisposable
     }
 
     /// <summary>
-    /// Reposition the child window to match the layout of a XAML element.
-    /// Coordinates are in physical pixels relative to the parent window client area.
+    /// Reposition the popup window. Coordinates are in physical pixels
+    /// relative to the owner window's client area — they will be converted
+    /// to screen coordinates internally.
     /// </summary>
-    public void SetBounds(int x, int y, int width, int height)
+    public void SetBounds(int clientX, int clientY, int width, int height)
     {
         if (_hwnd == IntPtr.Zero) return;
-        SetWindowPos(_hwnd, IntPtr.Zero, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
+
+        // Convert client-relative coordinates to screen coordinates
+        var pt = new POINT { X = clientX, Y = clientY };
+        ClientToScreen(_ownerHwnd, ref pt);
+
+        SetWindowPos(_hwnd, IntPtr.Zero, pt.X, pt.Y, width, height, SWP_NOACTIVATE | SWP_NOZORDER);
     }
 
-    public void Show() => ShowWindow(_hwnd, SW_SHOW);
+    public void Show() => ShowWindow(_hwnd, SW_SHOWNOACTIVATE);
     public void Hide() => ShowWindow(_hwnd, SW_HIDE);
 
     public void Dispose()

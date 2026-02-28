@@ -36,17 +36,42 @@ public sealed partial class PlayerPanel : UserControl
 
         this.Loaded += PlayerPanel_Loaded;
         this.Unloaded += PlayerPanel_Unloaded;
+
+        // When the panel toggles from Collapsed → Visible, we need to
+        // re-create/reposition the native video window after layout completes.
+        this.RegisterPropertyChangedCallback(VisibilityProperty, (_, _) =>
+        {
+            if (Visibility == Visibility.Visible)
+            {
+                // Defer to next layout pass so ActualWidth/Height are populated
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    EnsureVideoWindow();
+                    PositionVideoWindow();
+                });
+            }
+            else
+            {
+                _videoWindow?.Hide();
+            }
+        });
+    }
+
+    private void EnsureVideoWindow()
+    {
+        if (_videoWindow is not null) return;
+
+        var parentHwnd = GetMainWindowHwnd();
+        if (parentHwnd == IntPtr.Zero) return;
+
+        _videoWindow = new NativeVideoWindow(parentHwnd);
+        ViewModel.MediaPlayer.Hwnd = _videoWindow.Hwnd;
     }
 
     private void PlayerPanel_Loaded(object sender, RoutedEventArgs e)
     {
-        // Create native child window for video rendering
-        var mainWindow = (Application.Current as App) is not null ? GetMainWindowHwnd() : IntPtr.Zero;
-        if (mainWindow != IntPtr.Zero)
-        {
-            _videoWindow = new NativeVideoWindow(mainWindow);
-            ViewModel.MediaPlayer.Hwnd = _videoWindow.Hwnd;
-        }
+        // Create native child window for video rendering (may be collapsed, that's OK)
+        EnsureVideoWindow();
 
         // Start timeline update timer (10fps)
         _timer = DispatcherQueue.CreateTimer();
@@ -84,6 +109,11 @@ public sealed partial class PlayerPanel : UserControl
 
         CurrentTimeText.Text = ViewModel.CurrentTimeText;
         TotalTimeText.Text = ViewModel.TotalTimeText;
+
+        // Popup windows don't auto-follow the main window,
+        // so reposition every tick to track window moves/resizes
+        if (ViewModel.CurrentVideo is not null && Visibility == Visibility.Visible)
+            PositionVideoWindow();
     }
 
     private void VideoSurface_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -198,8 +228,14 @@ public sealed partial class PlayerPanel : UserControl
     public void PlayVideo(Video video)
     {
         NoVideoPlaceholder.Visibility = Visibility.Collapsed;
-        PositionVideoWindow();
+        EnsureVideoWindow();
         ViewModel.Play(video);
+
+        // Defer positioning to after the layout pass so VideoSurface has real dimensions
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            PositionVideoWindow();
+        });
     }
 
     private static class NativeMethods
