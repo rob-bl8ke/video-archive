@@ -51,8 +51,8 @@ public sealed partial class MainWindow : Window
         var playerVm = App.Services.GetRequiredService<VideoPlayerViewModel>();
         playerVm.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(VideoPlayerViewModel.IsPlaying))
-                ManageTagsButton.IsEnabled = !playerVm.IsPlaying;
+            if (e.PropertyName == nameof(VideoPlayerViewModel.CanInteract))
+                ManageTagsButton.IsEnabled = playerVm.CanInteract;
         };
 
         // Select Library nav item by default

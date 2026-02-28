@@ -9,6 +9,29 @@ using VideoArchive.Models;
 
 namespace VideoArchive.ViewModels;
 
+/// <summary>
+/// Defines the discrete states the video player can be in.
+/// Transitions:
+///   Idle ──► Playing  (Play a video)
+///   Playing ──► Paused  (Pause)
+///   Paused ──► Playing  (Resume)
+///   Playing ──► Stopped  (Stop / EndReached)
+///   Paused ──► Stopped  (Stop)
+///   Stopped ──► Playing  (Play a new video)
+///   Stopped ──► Idle  (media cleared)
+/// </summary>
+public enum PlaybackState
+{
+    /// <summary>No media loaded — initial state or after media is cleared.</summary>
+    Idle,
+    /// <summary>Media is actively playing.</summary>
+    Playing,
+    /// <summary>Media is loaded but paused.</summary>
+    Paused,
+    /// <summary>Playback ended or was stopped; media reference may still exist.</summary>
+    Stopped,
+}
+
 #pragma warning disable MVVMTK0045
 public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 {
@@ -26,26 +49,74 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         _libVLC = new LibVLC("--no-video-title-show");
         _mediaPlayer = new MediaPlayer(_libVLC);
 
-        // LibVLC events fire on background threads — must marshal to UI thread
-        _mediaPlayer.Playing += (_, _) => _dispatcher.TryEnqueue(() => IsPlaying = true);
-        _mediaPlayer.Paused += (_, _) => _dispatcher.TryEnqueue(() => IsPlaying = false);
+        // LibVLC events fire on background threads — marshal state transitions to UI thread
+        _mediaPlayer.Playing += (_, _) => _dispatcher.TryEnqueue(() => State = PlaybackState.Playing);
+        _mediaPlayer.Paused += (_, _) => _dispatcher.TryEnqueue(() => State = PlaybackState.Paused);
         _mediaPlayer.Stopped += (_, _) => _dispatcher.TryEnqueue(() =>
         {
-            IsPlaying = false;
+            State = PlaybackState.Stopped;
             Position = 0;
             CurrentTimeText = "--:--";
         });
         _mediaPlayer.EndReached += (_, _) => _dispatcher.TryEnqueue(() =>
         {
-            IsPlaying = false;
+            State = PlaybackState.Stopped;
             Position = 0;
         });
+
+        // Re-evaluate CanPlay when the gallery selection changes
+        var mainVm = App.Services.GetRequiredService<MainViewModel>();
+        mainVm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.HasSelection))
+                OnPropertyChanged(nameof(CanPlay));
+        };
     }
 
     public MediaPlayer MediaPlayer => _mediaPlayer;
 
+    // ── Playback state machine ───────────────────────────────────────
+
     [ObservableProperty]
-    private bool _isPlaying;
+    private PlaybackState _state = PlaybackState.Idle;
+
+    /// <summary>Raised whenever State changes — updates all derived boolean properties.</summary>
+    partial void OnStateChanged(PlaybackState value)
+    {
+        OnPropertyChanged(nameof(IsPlaying));
+        OnPropertyChanged(nameof(IsPaused));
+        OnPropertyChanged(nameof(IsIdle));
+        OnPropertyChanged(nameof(HasMedia));
+        OnPropertyChanged(nameof(CanInteract));
+        OnPropertyChanged(nameof(CanPlay));
+    }
+
+    /// <summary>True when actively playing.</summary>
+    public bool IsPlaying => State == PlaybackState.Playing;
+
+    /// <summary>True when paused (media still loaded).</summary>
+    public bool IsPaused => State == PlaybackState.Paused;
+
+    /// <summary>True when no media is loaded.</summary>
+    public bool IsIdle => State == PlaybackState.Idle;
+
+    /// <summary>True when media is loaded (playing, paused, or stopped with media).</summary>
+    public bool HasMedia => _currentMedia is not null;
+
+    /// <summary>True when NOT playing — safe to open dialogs, change selection, etc.</summary>
+    public bool CanInteract => State != PlaybackState.Playing;
+
+    /// <summary>
+    /// True when the Play/Pause button can do something meaningful:
+    /// - Playing or Paused: always actionable (pause/resume)
+    /// - Idle or Stopped: only if a video is selected in the gallery
+    /// </summary>
+    public bool CanPlay => State switch
+    {
+        PlaybackState.Playing => true,
+        PlaybackState.Paused => true,
+        _ => App.Services.GetRequiredService<MainViewModel>().HasSelection,
+    };
 
     [ObservableProperty]
     private double _position; // 0.0 – 1.0
@@ -75,7 +146,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     /// </summary>
     public void UpdateTimeline()
     {
-        if (_disposed || _isSeeking || !_mediaPlayer.IsPlaying) return;
+        if (_disposed || _isSeeking || State != PlaybackState.Playing) return;
 
         Position = _mediaPlayer.Position;
 
@@ -110,35 +181,50 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
 
-        // LibVLC Play/Pause must run off the UI thread to avoid deadlock.
-        if (_mediaPlayer.IsPlaying)
+        switch (State)
         {
-            Task.Run(() => _mediaPlayer.Pause());
-        }
-        else if (_currentMedia is not null)
-        {
-            // Resume existing media
-            Task.Run(() => _mediaPlayer.Play());
-        }
-        else
-        {
-            // No media loaded yet — play the currently selected video
-            var mainVm = App.Services.GetRequiredService<MainViewModel>();
-            if (mainVm.SelectedVideo is not null)
-                Play(mainVm.SelectedVideo);
+            case PlaybackState.Playing:
+                // Currently playing → pause
+                Task.Run(() => _mediaPlayer.Pause());
+                break;
+
+            case PlaybackState.Paused:
+                // Paused with media loaded → resume
+                Task.Run(() => _mediaPlayer.Play());
+                break;
+
+            case PlaybackState.Stopped:
+            case PlaybackState.Idle:
+                // No active playback → play the currently selected video
+                if (_currentMedia is not null)
+                {
+                    // Stopped but media still assigned (shouldn't normally happen after Stop clears it)
+                    Task.Run(() => _mediaPlayer.Play());
+                }
+                else
+                {
+                    var mainVm = App.Services.GetRequiredService<MainViewModel>();
+                    if (mainVm.SelectedVideo is not null)
+                        Play(mainVm.SelectedVideo);
+                }
+                break;
         }
     }
 
     [RelayCommand]
     private void Stop()
     {
+        if (State == PlaybackState.Idle) return;
+
         // Stop must be called from a thread pool thread to avoid deadlock
         Task.Run(() => _mediaPlayer.Stop());
 
-        // Clear the current media so PlayPause will pick up the newly selected video
+        // Clear the current media and transition to Idle
         _currentMedia?.Dispose();
         _currentMedia = null;
         CurrentVideo = null;
+        State = PlaybackState.Idle;
+        OnPropertyChanged(nameof(HasMedia));
     }
 
     public void Play(Video video)

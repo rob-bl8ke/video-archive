@@ -26,6 +26,14 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private Video? _selectedVideo;
 
+    /// <summary>True when a video is selected in the gallery/details view.</summary>
+    public bool HasSelection => SelectedVideo is not null;
+
+    partial void OnSelectedVideoChanged(Video? value)
+    {
+        OnPropertyChanged(nameof(HasSelection));
+    }
+
     [ObservableProperty]
     private bool _isGalleryView;
 
@@ -85,6 +93,10 @@ public partial class MainViewModel : ObservableObject
         Videos.Clear();
         foreach (var v in filtered)
             Videos.Add(v);
+
+        // Auto-select first video if nothing is selected
+        if (SelectedVideo is null && Videos.Count > 0)
+            SelectedVideo = Videos[0];
     }
 }
 #pragma warning restore MVVMTK0045

@@ -77,6 +77,8 @@ public sealed partial class PlayerPanel : UserControl
                 NowPlayingText.Text = ViewModel.NowPlayingTitle;
             if (e.PropertyName == nameof(VideoPlayerViewModel.IsPlaying))
                 PlayPauseIcon.Glyph = ViewModel.IsPlaying ? "\uE769" : "\uE768"; // Pause : Play
+            if (e.PropertyName == nameof(VideoPlayerViewModel.CanPlay))
+                PlayPauseButton.IsEnabled = ViewModel.CanPlay;
         };
 
         this.Loaded += PlayerPanel_Loaded;
