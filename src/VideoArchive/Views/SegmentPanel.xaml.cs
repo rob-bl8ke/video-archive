@@ -36,7 +36,8 @@ public sealed partial class SegmentPanel : UserControl
 
             if (e.PropertyName is nameof(VideoPlayerViewModel.ActiveSegment)
                                 or nameof(VideoPlayerViewModel.IsSegmentLooping)
-                                or nameof(VideoPlayerViewModel.State))
+                                or nameof(VideoPlayerViewModel.State)
+                                or nameof(VideoPlayerViewModel.VideoFps))
             {
                 RefreshSegmentPlayStates();
             }
@@ -57,12 +58,13 @@ public sealed partial class SegmentPanel : UserControl
     /// </summary>
     private void RefreshSegmentPlayStates()
     {
-        var activeId      = ViewModel.ActiveSegment?.Id;
-        var isPlaying     = ViewModel.State == PlaybackState.Playing;
-        var isLooping     = ViewModel.IsSegmentLooping;
-        var accentBrush   = new SolidColorBrush(Colors.SteelBlue);
-        var defaultBrush  = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
-        var accentStyle   = (Style)Application.Current.Resources["AccentButtonStyle"];
+        var activeId     = ViewModel.ActiveSegment?.Id;
+        var isPlaying    = ViewModel.State == PlaybackState.Playing;
+        var isLooping    = ViewModel.IsSegmentLooping;
+        var fps          = ViewModel.VideoFps;
+        var accentBrush  = new SolidColorBrush(Colors.SteelBlue);
+        var defaultBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
+        var accentStyle  = (Style)Application.Current.Resources["AccentButtonStyle"];
 
         foreach (var segment in ViewModel.Segments)
         {
@@ -92,7 +94,28 @@ public sealed partial class SegmentPanel : UserControl
             // Loop ToggleButton checked state
             if (FindFirstDescendant<ToggleButton>(container) is ToggleButton loopBtn)
                 loopBtn.IsChecked = isLooping;
+
+            // Timecode TextBlocks — updated imperatively so FPS changes are reflected immediately
+            var startTc = FindDescendants<TextBlock>(container)
+                          .FirstOrDefault(tb => AutomationProperties.GetName(tb) == "start-timecode");
+            if (startTc is not null)
+                startTc.Text = FormatTimecode(segment.StartTime, fps);
+
+            var endTc = FindDescendants<TextBlock>(container)
+                        .FirstOrDefault(tb => AutomationProperties.GetName(tb) == "end-timecode");
+            if (endTc is not null)
+                endTc.Text = FormatTimecode(segment.EndTime, fps);
         }
+    }
+
+    private static string FormatTimecode(TimeSpan ts, float fps)
+    {
+        if (fps <= 0f) return "--:--:--:--";
+        int h = (int)ts.TotalHours;
+        int m = ts.Minutes;
+        int s = ts.Seconds;
+        int f = (int)Math.Floor(ts.Milliseconds / 1000.0 * fps);
+        return $"{h:D2}:{m:D2}:{s:D2}:{f:D2}";
     }
 
     // ── Visual tree helpers ───────────────────────────────────────────
@@ -168,25 +191,49 @@ public sealed partial class SegmentPanel : UserControl
     private void AdjustStartMinus5_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
-            ViewModel.AdjustStartTimeCommand.Execute((segment, -5));
+            ViewModel.AdjustStartTimeCommand.Execute((segment, -5.0));
     }
 
     private void AdjustStartMinus1_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
-            ViewModel.AdjustStartTimeCommand.Execute((segment, -1));
+            ViewModel.AdjustStartTimeCommand.Execute((segment, -1.0));
+    }
+
+    private void AdjustStartMinusTenth_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is VideoSegment segment)
+            ViewModel.AdjustStartTimeCommand.Execute((segment, -0.1));
+    }
+
+    private void AdjustStartMinus1Frame_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is VideoSegment segment)
+            ViewModel.AdjustStartFrameCommand.Execute((segment, -1));
+    }
+
+    private void AdjustStartPlus1Frame_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is VideoSegment segment)
+            ViewModel.AdjustStartFrameCommand.Execute((segment, 1));
+    }
+
+    private void AdjustStartPlusTenth_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is VideoSegment segment)
+            ViewModel.AdjustStartTimeCommand.Execute((segment, 0.1));
     }
 
     private void AdjustStartPlus1_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
-            ViewModel.AdjustStartTimeCommand.Execute((segment, 1));
+            ViewModel.AdjustStartTimeCommand.Execute((segment, 1.0));
     }
 
     private void AdjustStartPlus5_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
-            ViewModel.AdjustStartTimeCommand.Execute((segment, 5));
+            ViewModel.AdjustStartTimeCommand.Execute((segment, 5.0));
     }
 
     // ── End time adjustments ─────────────────────────────────────────
@@ -194,25 +241,49 @@ public sealed partial class SegmentPanel : UserControl
     private void AdjustEndMinus5_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
-            ViewModel.AdjustEndTimeCommand.Execute((segment, -5));
+            ViewModel.AdjustEndTimeCommand.Execute((segment, -5.0));
     }
 
     private void AdjustEndMinus1_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
-            ViewModel.AdjustEndTimeCommand.Execute((segment, -1));
+            ViewModel.AdjustEndTimeCommand.Execute((segment, -1.0));
+    }
+
+    private void AdjustEndMinusTenth_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is VideoSegment segment)
+            ViewModel.AdjustEndTimeCommand.Execute((segment, -0.1));
+    }
+
+    private void AdjustEndMinus1Frame_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is VideoSegment segment)
+            ViewModel.AdjustEndFrameCommand.Execute((segment, -1));
+    }
+
+    private void AdjustEndPlus1Frame_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is VideoSegment segment)
+            ViewModel.AdjustEndFrameCommand.Execute((segment, 1));
+    }
+
+    private void AdjustEndPlusTenth_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is VideoSegment segment)
+            ViewModel.AdjustEndTimeCommand.Execute((segment, 0.1));
     }
 
     private void AdjustEndPlus1_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
-            ViewModel.AdjustEndTimeCommand.Execute((segment, 1));
+            ViewModel.AdjustEndTimeCommand.Execute((segment, 1.0));
     }
 
     private void AdjustEndPlus5_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
-            ViewModel.AdjustEndTimeCommand.Execute((segment, 5));
+            ViewModel.AdjustEndTimeCommand.Execute((segment, 5.0));
     }
 
     // ── Segment transport ────────────────────────────────────────────

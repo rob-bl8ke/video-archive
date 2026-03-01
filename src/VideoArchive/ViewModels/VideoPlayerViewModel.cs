@@ -177,6 +177,10 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isSegmentLooping;
 
+    /// <summary>Frames per second of the currently loaded video; 0 when unknown.</summary>
+    [ObservableProperty]
+    private float _videoFps;
+
     private bool _isSeeking;
 
     /// <summary>
@@ -194,6 +198,10 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
         CurrentTimeText = FormatTime(current);
         TotalTimeText = FormatTime(total);
+
+        // Keep VideoFps in sync — only update when value changes meaningfully
+        if (_mediaPlayer.Fps > 0f && Math.Abs(VideoFps - _mediaPlayer.Fps) > 0.01f)
+            VideoFps = _mediaPlayer.Fps;
 
         // Segment boundary enforcement
         if (ActiveSegment is not null && _mediaPlayer.Time >= (long)ActiveSegment.EndTime.TotalMilliseconds)
@@ -338,6 +346,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     public void Play(Video video)
     {
         _isPreviewing = false;
+        VideoFps = 0f;
         CurrentVideo = video;
         NowPlayingTitle = video.Title ?? Path.GetFileNameWithoutExtension(video.FilePath);
 
@@ -362,6 +371,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
         // Cancel any in-flight preview before starting a new one
         _isPreviewing = false;
+        VideoFps = 0f;
 
         CurrentVideo = video;
         NowPlayingTitle = video.Title ?? Path.GetFileNameWithoutExtension(video.FilePath);
@@ -517,7 +527,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
     /// <summary>Adjust the start time by the given number of seconds (positive or negative).</summary>
     [RelayCommand]
-    private async Task AdjustStartTimeAsync((VideoSegment segment, int seconds) args)
+    private async Task AdjustStartTimeAsync((VideoSegment segment, double seconds) args)
     {
         var (segment, seconds) = args;
         var newStart = segment.StartTime + TimeSpan.FromSeconds(seconds);
@@ -536,7 +546,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
     /// <summary>Adjust the end time by the given number of seconds (positive or negative).</summary>
     [RelayCommand]
-    private async Task AdjustEndTimeAsync((VideoSegment segment, int seconds) args)
+    private async Task AdjustEndTimeAsync((VideoSegment segment, double seconds) args)
     {
         var (segment, seconds) = args;
         var newEnd = segment.EndTime + TimeSpan.FromSeconds(seconds);
@@ -546,6 +556,40 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         if (newEnd < minEnd) newEnd = minEnd;
 
         // Clamp: cannot exceed video duration
+        var videoDuration = VideoDuration;
+        if (newEnd > videoDuration) newEnd = videoDuration;
+
+        segment.EndTime = newEnd;
+        await SaveSegmentAsync(segment);
+    }
+
+    /// <summary>Adjust the start time by the given number of frames (positive or negative).</summary>
+    [RelayCommand]
+    private async Task AdjustStartFrameAsync((VideoSegment segment, int frames) args)
+    {
+        var (segment, frames) = args;
+        if (VideoFps <= 0f) return;
+        var newStart = segment.StartTime + TimeSpan.FromSeconds(frames / (double)VideoFps);
+
+        if (newStart < TimeSpan.Zero) newStart = TimeSpan.Zero;
+        var maxStart = segment.EndTime - MinDuration;
+        if (maxStart < TimeSpan.Zero) maxStart = TimeSpan.Zero;
+        if (newStart > maxStart) newStart = maxStart;
+
+        segment.StartTime = newStart;
+        await SaveSegmentAsync(segment);
+    }
+
+    /// <summary>Adjust the end time by the given number of frames (positive or negative).</summary>
+    [RelayCommand]
+    private async Task AdjustEndFrameAsync((VideoSegment segment, int frames) args)
+    {
+        var (segment, frames) = args;
+        if (VideoFps <= 0f) return;
+        var newEnd = segment.EndTime + TimeSpan.FromSeconds(frames / (double)VideoFps);
+
+        var minEnd = segment.StartTime + MinDuration;
+        if (newEnd < minEnd) newEnd = minEnd;
         var videoDuration = VideoDuration;
         if (newEnd > videoDuration) newEnd = videoDuration;
 
