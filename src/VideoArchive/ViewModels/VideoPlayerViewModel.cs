@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Dispatching;
 using VideoArchive.Data;
 using VideoArchive.Models;
+using VideoArchive.Services;
 
 namespace VideoArchive.ViewModels;
 
@@ -307,9 +308,38 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<VideoArchiveContext>();
         var segments = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
-            .ToListAsync(context.VideoSegments.Where(s => s.VideoId == videoId));
+            .ToListAsync(context.VideoSegments
+                .Where(s => s.VideoId == videoId));
+        // SQLite doesn't support OrderBy on TimeSpan — sort client-side
+        segments.Sort((a, b) => a.StartTime.CompareTo(b.StartTime));
         Segments = new ObservableCollection<VideoSegment>(segments);
     }
+
+    // ── Segment helpers ──────────────────────────────────────────────
+
+    /// <summary>Read the configurable minimum segment duration.</summary>
+    private TimeSpan MinDuration
+    {
+        get
+        {
+            var settings = App.Services.GetRequiredService<ISettingsService>();
+            return TimeSpan.FromSeconds(Math.Max(1, settings.MinSegmentDurationSeconds));
+        }
+    }
+
+    /// <summary>Read the configurable default segment duration for new segments.</summary>
+    private TimeSpan DefaultDuration
+    {
+        get
+        {
+            var settings = App.Services.GetRequiredService<ISettingsService>();
+            return TimeSpan.FromSeconds(Math.Max(1, settings.DefaultSegmentDurationSeconds));
+        }
+    }
+
+    /// <summary>Get the total duration of the currently loaded media.</summary>
+    private TimeSpan VideoDuration =>
+        _mediaPlayer.Length > 0 ? TimeSpan.FromMilliseconds(_mediaPlayer.Length) : TimeSpan.MaxValue;
 
     [RelayCommand]
     private async Task AddSegmentAsync()
@@ -317,12 +347,32 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         if (CurrentVideo is null) return;
 
         var currentTime = TimeSpan.FromMilliseconds(_mediaPlayer.Time);
+        var videoDuration = VideoDuration;
+
+        // Compute a unique auto-name based on existing segment names
+        var nextNumber = 1;
+        foreach (var s in Segments)
+        {
+            if (s.Name.StartsWith("Segment ", StringComparison.Ordinal)
+                && int.TryParse(s.Name.AsSpan("Segment ".Length), out var n)
+                && n >= nextNumber)
+            {
+                nextNumber = n + 1;
+            }
+        }
+
+        var endTime = currentTime + DefaultDuration;
+        if (endTime > videoDuration) endTime = videoDuration;
+        // Ensure minimum duration if possible
+        if (endTime - currentTime < MinDuration && currentTime + MinDuration <= videoDuration)
+            endTime = currentTime + MinDuration;
+
         var segment = new VideoSegment
         {
             VideoId = CurrentVideo.Id,
-            Name = $"Segment {Segments.Count + 1}",
+            Name = $"Segment {nextNumber}",
             StartTime = currentTime,
-            EndTime = currentTime + TimeSpan.FromSeconds(10),
+            EndTime = endTime,
         };
 
         using var scope = _scopeFactory.CreateScope();
@@ -330,7 +380,11 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         context.VideoSegments.Add(segment);
         await context.SaveChangesAsync();
 
-        Segments.Add(segment);
+        // Insert sorted by StartTime
+        var index = 0;
+        while (index < Segments.Count && Segments[index].StartTime <= segment.StartTime)
+            index++;
+        Segments.Insert(index, segment);
     }
 
     [RelayCommand]
@@ -350,19 +404,80 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         Segments.Remove(segment);
     }
 
+    /// <summary>Rename a segment. Empty names are rejected.</summary>
+    [RelayCommand]
+    private async Task RenameSegmentAsync(VideoSegment? segment)
+    {
+        if (segment is null || string.IsNullOrWhiteSpace(segment.Name)) return;
+        await SaveSegmentAsync(segment);
+    }
+
+    /// <summary>Set segment start time from the current playhead position.</summary>
     public void SetStartTime(VideoSegment segment)
     {
-        segment.StartTime = TimeSpan.FromMilliseconds(_mediaPlayer.Time);
-        SaveSegment(segment);
+        var newStart = TimeSpan.FromMilliseconds(_mediaPlayer.Time);
+        var maxStart = segment.EndTime - MinDuration;
+        if (maxStart < TimeSpan.Zero) maxStart = TimeSpan.Zero;
+        if (newStart > maxStart) newStart = maxStart;
+        if (newStart < TimeSpan.Zero) newStart = TimeSpan.Zero;
+
+        segment.StartTime = newStart;
+        _ = SaveSegmentAsync(segment);
     }
 
+    /// <summary>Set segment end time from the current playhead position.</summary>
     public void SetEndTime(VideoSegment segment)
     {
-        segment.EndTime = TimeSpan.FromMilliseconds(_mediaPlayer.Time);
-        SaveSegment(segment);
+        var newEnd = TimeSpan.FromMilliseconds(_mediaPlayer.Time);
+        var minEnd = segment.StartTime + MinDuration;
+        if (newEnd < minEnd) newEnd = minEnd;
+        var videoDuration = VideoDuration;
+        if (newEnd > videoDuration) newEnd = videoDuration;
+
+        segment.EndTime = newEnd;
+        _ = SaveSegmentAsync(segment);
     }
 
-    private async void SaveSegment(VideoSegment segment)
+    /// <summary>Adjust the start time by the given number of seconds (positive or negative).</summary>
+    [RelayCommand]
+    private async Task AdjustStartTimeAsync((VideoSegment segment, int seconds) args)
+    {
+        var (segment, seconds) = args;
+        var newStart = segment.StartTime + TimeSpan.FromSeconds(seconds);
+
+        // Clamp: cannot go below zero
+        if (newStart < TimeSpan.Zero) newStart = TimeSpan.Zero;
+
+        // Clamp: must maintain minimum duration
+        var maxStart = segment.EndTime - MinDuration;
+        if (maxStart < TimeSpan.Zero) maxStart = TimeSpan.Zero;
+        if (newStart > maxStart) newStart = maxStart;
+
+        segment.StartTime = newStart;
+        await SaveSegmentAsync(segment);
+    }
+
+    /// <summary>Adjust the end time by the given number of seconds (positive or negative).</summary>
+    [RelayCommand]
+    private async Task AdjustEndTimeAsync((VideoSegment segment, int seconds) args)
+    {
+        var (segment, seconds) = args;
+        var newEnd = segment.EndTime + TimeSpan.FromSeconds(seconds);
+
+        // Clamp: must maintain minimum duration
+        var minEnd = segment.StartTime + MinDuration;
+        if (newEnd < minEnd) newEnd = minEnd;
+
+        // Clamp: cannot exceed video duration
+        var videoDuration = VideoDuration;
+        if (newEnd > videoDuration) newEnd = videoDuration;
+
+        segment.EndTime = newEnd;
+        await SaveSegmentAsync(segment);
+    }
+
+    /// <summary>Persist the segment to the database.</summary>
+    private async Task SaveSegmentAsync(VideoSegment segment)
     {
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<VideoArchiveContext>();

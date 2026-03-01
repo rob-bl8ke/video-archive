@@ -66,13 +66,9 @@ public sealed partial class PlayerPanel : UserControl
         ViewModel = App.Services.GetRequiredService<VideoPlayerViewModel>();
         this.InitializeComponent();
 
-        SegmentsList.ItemsSource = ViewModel.Segments;
-
-        // Bind segments collection changes
+        // Bind VM property changes to UI elements
         ViewModel.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(VideoPlayerViewModel.Segments))
-                SegmentsList.ItemsSource = ViewModel.Segments;
             if (e.PropertyName == nameof(VideoPlayerViewModel.NowPlayingTitle))
                 NowPlayingText.Text = ViewModel.NowPlayingTitle;
             if (e.PropertyName == nameof(VideoPlayerViewModel.IsPlaying))
@@ -359,26 +355,7 @@ public sealed partial class PlayerPanel : UserControl
         ViewModel.Volume = (int)e.NewValue;
     }
 
-    // Segment handlers
-    private void AddSegment_Click(object sender, RoutedEventArgs e) => ViewModel.AddSegmentCommand.Execute(null);
-
-    private void SetStartTime_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is VideoSegment segment)
-            ViewModel.SetStartTime(segment);
-    }
-
-    private void SetEndTime_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is VideoSegment segment)
-            ViewModel.SetEndTime(segment);
-    }
-
-    private void DeleteSegment_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is VideoSegment segment)
-            ViewModel.DeleteSegmentCommand.Execute(segment);
-    }
+    // Segment handlers have moved to SegmentPanel.xaml.cs
 
     /// <summary>
     /// Called from MainWindow to start playback of a video.

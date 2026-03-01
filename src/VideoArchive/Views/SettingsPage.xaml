@@ -107,6 +107,46 @@
                 </StackPanel>
             </StackPanel>
 
+            <!-- Segments -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="Segments"
+                           Style="{ThemeResource SubtitleTextBlockStyle}" />
+                <TextBlock Text="Configure default durations for video segments."
+                           Style="{ThemeResource BodyTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                <Grid ColumnSpacing="16" RowSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                               Text="Default segment duration (seconds)"
+                               VerticalAlignment="Center" />
+                    <NumberBox x:Name="DefaultDurationBox"
+                               Grid.Row="0" Grid.Column="1"
+                               Width="100"
+                               Minimum="1" Maximum="300"
+                               SpinButtonPlacementMode="Compact"
+                               ValueChanged="DefaultDurationBox_ValueChanged" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0"
+                               Text="Minimum segment duration (seconds)"
+                               VerticalAlignment="Center" />
+                    <NumberBox x:Name="MinDurationBox"
+                               Grid.Row="1" Grid.Column="1"
+                               Width="100"
+                               Minimum="1" Maximum="60"
+                               SpinButtonPlacementMode="Compact"
+                               ValueChanged="MinDurationBox_ValueChanged" />
+                </Grid>
+            </StackPanel>
+
             <!-- Tag Management shortcut -->
             <StackPanel Spacing="8">
                 <TextBlock Text="Tags"

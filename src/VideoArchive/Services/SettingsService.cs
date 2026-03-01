@@ -64,6 +64,18 @@ public class SettingsService : ISettingsService
         set => Set(nameof(WindowTop), value.ToString());
     }
 
+    public int MinSegmentDurationSeconds
+    {
+        get => int.TryParse(Get(nameof(MinSegmentDurationSeconds), "5"), out var v) ? v : 5;
+        set => Set(nameof(MinSegmentDurationSeconds), value.ToString());
+    }
+
+    public int DefaultSegmentDurationSeconds
+    {
+        get => int.TryParse(Get(nameof(DefaultSegmentDurationSeconds), "10"), out var v) ? v : 10;
+        set => Set(nameof(DefaultSegmentDurationSeconds), value.ToString());
+    }
+
     private string? Get(string key, string? defaultValue)
         => _values.TryGetValue(key, out var value) ? value : defaultValue;
 

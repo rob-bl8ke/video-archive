@@ -1,0 +1,192 @@
+<UserControl
+    x:Class="VideoArchive.Views.SegmentPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:converters="using:VideoArchive.Converters">
+
+    <UserControl.Resources>
+        <converters:PreciseDurationConverter x:Key="PreciseDuration" />
+    </UserControl.Resources>
+
+    <Grid Padding="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <TextBlock Text="Segments"
+                       Style="{ThemeResource BodyStrongTextBlockStyle}"
+                       VerticalAlignment="Center" />
+            <Button x:Name="AddButton"
+                    Click="AddSegment_Click"
+                    ToolTipService.ToolTip="Add segment at current time"
+                    Padding="4">
+                <FontIcon Glyph="&#xE710;" FontSize="12" />
+            </Button>
+        </StackPanel>
+
+        <!-- Segment list -->
+        <ListView x:Name="SegmentsList"
+                  Grid.Row="1"
+                  SelectionMode="None"
+                  Padding="0">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="Padding" Value="4,4,4,4" />
+                    <Setter Property="MinHeight" Value="0" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="8,6"
+                            Margin="0,2">
+                        <Grid RowSpacing="4">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Row 0: Editable name -->
+                            <TextBox Grid.Row="0"
+                                     Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     PlaceholderText="Segment name"
+                                     FontSize="12"
+                                     FontWeight="SemiBold"
+                                     Padding="4,2"
+                                     BorderThickness="0,0,0,1"
+                                     LostFocus="SegmentName_LostFocus"
+                                     KeyDown="SegmentName_KeyDown"
+                                     Tag="{Binding}" />
+
+                            <!-- Row 1: Start time with adjustments -->
+                            <Grid Grid.Row="1" ColumnSpacing="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="36" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0"
+                                           Text="Start"
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           VerticalAlignment="Center"
+                                           FontSize="11" />
+
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding StartTime, Converter={StaticResource PreciseDuration}}"
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           VerticalAlignment="Center"
+                                           FontSize="11"
+                                           FontFamily="Consolas" />
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="1">
+                                    <Button Click="AdjustStartMinus5_Click" Tag="{Binding}"
+                                            ToolTipService.ToolTip="Start −5s"
+                                            Padding="3,1" MinWidth="0" MinHeight="0" FontSize="10">
+                                        <TextBlock Text="−5" FontSize="10" />
+                                    </Button>
+                                    <Button Click="AdjustStartMinus1_Click" Tag="{Binding}"
+                                            ToolTipService.ToolTip="Start −1s"
+                                            Padding="3,1" MinWidth="0" MinHeight="0">
+                                        <TextBlock Text="−1" FontSize="10" />
+                                    </Button>
+                                    <Button Click="SetStartFromPlayhead_Click" Tag="{Binding}"
+                                            ToolTipService.ToolTip="Set start to current time"
+                                            Padding="3,1" MinWidth="0" MinHeight="0">
+                                        <FontIcon Glyph="&#xE892;" FontSize="10" />
+                                    </Button>
+                                    <Button Click="AdjustStartPlus1_Click" Tag="{Binding}"
+                                            ToolTipService.ToolTip="Start +1s"
+                                            Padding="3,1" MinWidth="0" MinHeight="0">
+                                        <TextBlock Text="+1" FontSize="10" />
+                                    </Button>
+                                    <Button Click="AdjustStartPlus5_Click" Tag="{Binding}"
+                                            ToolTipService.ToolTip="Start +5s"
+                                            Padding="3,1" MinWidth="0" MinHeight="0">
+                                        <TextBlock Text="+5" FontSize="10" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Row 2: End time with adjustments -->
+                            <Grid Grid.Row="2" ColumnSpacing="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="36" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0"
+                                           Text="End"
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           VerticalAlignment="Center"
+                                           FontSize="11" />
+
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding EndTime, Converter={StaticResource PreciseDuration}}"
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           VerticalAlignment="Center"
+                                           FontSize="11"
+                                           FontFamily="Consolas" />
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="1">
+                                    <Button Click="AdjustEndMinus5_Click" Tag="{Binding}"
+                                            ToolTipService.ToolTip="End −5s"
+                                            Padding="3,1" MinWidth="0" MinHeight="0">
+                                        <TextBlock Text="−5" FontSize="10" />
+                                    </Button>
+                                    <Button Click="AdjustEndMinus1_Click" Tag="{Binding}"
+                                            ToolTipService.ToolTip="End −1s"
+                                            Padding="3,1" MinWidth="0" MinHeight="0">
+                                        <TextBlock Text="−1" FontSize="10" />
+                                    </Button>
+                                    <Button Click="SetEndFromPlayhead_Click" Tag="{Binding}"
+                                            ToolTipService.ToolTip="Set end to current time"
+                                            Padding="3,1" MinWidth="0" MinHeight="0">
+                                        <FontIcon Glyph="&#xE893;" FontSize="10" />
+                                    </Button>
+                                    <Button Click="AdjustEndPlus1_Click" Tag="{Binding}"
+                                            ToolTipService.ToolTip="End +1s"
+                                            Padding="3,1" MinWidth="0" MinHeight="0">
+                                        <TextBlock Text="+1" FontSize="10" />
+                                    </Button>
+                                    <Button Click="AdjustEndPlus5_Click" Tag="{Binding}"
+                                            ToolTipService.ToolTip="End +5s"
+                                            Padding="3,1" MinWidth="0" MinHeight="0">
+                                        <TextBlock Text="+5" FontSize="10" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Row 3: Delete button -->
+                            <Button Grid.Row="3"
+                                    Click="DeleteSegment_Click"
+                                    Tag="{Binding}"
+                                    ToolTipService.ToolTip="Delete segment"
+                                    HorizontalAlignment="Right"
+                                    Padding="4,2"
+                                    Margin="0,2,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <FontIcon Glyph="&#xE74D;" FontSize="10"
+                                              Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                    <TextBlock Text="Delete" FontSize="10"
+                                               Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</UserControl>

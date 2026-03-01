@@ -32,6 +32,11 @@ public sealed partial class SettingsPage : UserControl
         {
             await ViewModel.LoadFoldersCommand.ExecuteAsync(null);
 
+            // Load segment settings
+            var settings = App.Services.GetRequiredService<ISettingsService>();
+            DefaultDurationBox.Value = settings.DefaultSegmentDurationSeconds;
+            MinDurationBox.Value = settings.MinSegmentDurationSeconds;
+
             // Set theme combo to current value
             if (this.XamlRoot?.Content is FrameworkElement rootElement)
             {
@@ -231,5 +236,19 @@ public sealed partial class SettingsPage : UserControl
     private async void ManageTags_Click(object sender, RoutedEventArgs e)
     {
         await TagManagerDialog.ShowAsync(this.XamlRoot);
+    }
+
+    private void DefaultDurationBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (double.IsNaN(args.NewValue)) return;
+        var settings = App.Services.GetRequiredService<ISettingsService>();
+        settings.DefaultSegmentDurationSeconds = (int)args.NewValue;
+    }
+
+    private void MinDurationBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (double.IsNaN(args.NewValue)) return;
+        var settings = App.Services.GetRequiredService<ISettingsService>();
+        settings.MinSegmentDurationSeconds = (int)args.NewValue;
     }
 }
