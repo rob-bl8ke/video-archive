@@ -244,6 +244,17 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         Task.Run(() => _mediaPlayer.Time = (long)time.TotalMilliseconds);
     }
 
+    /// <summary>
+    /// Seek to the given time so the user can see the frame — but only when
+    /// not actively playing (paused/stopped). While playing, the seek would
+    /// fight the normal playback position and should be skipped.
+    /// </summary>
+    private void PreviewTime(TimeSpan time)
+    {
+        if (State != PlaybackState.Playing && _currentMedia is not null)
+            SeekToTime(time);
+    }
+
     /// <summary>Exit segment playback mode without affecting the media player state.</summary>
     private void StopSegmentPlayback()
     {
@@ -510,6 +521,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
         segment.StartTime = newStart;
         _ = SaveSegmentAsync(segment);
+        PreviewTime(newStart);
     }
 
     /// <summary>Set segment end time from the current playhead position.</summary>
@@ -523,6 +535,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
         segment.EndTime = newEnd;
         _ = SaveSegmentAsync(segment);
+        PreviewTime(newEnd);
     }
 
     /// <summary>Adjust the start time by the given number of seconds (positive or negative).</summary>
@@ -542,6 +555,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
         segment.StartTime = newStart;
         await SaveSegmentAsync(segment);
+        PreviewTime(newStart);
     }
 
     /// <summary>Adjust the end time by the given number of seconds (positive or negative).</summary>
@@ -561,6 +575,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
         segment.EndTime = newEnd;
         await SaveSegmentAsync(segment);
+        PreviewTime(newEnd);
     }
 
     /// <summary>Adjust the start time by the given number of frames (positive or negative).</summary>
@@ -578,6 +593,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
         segment.StartTime = newStart;
         await SaveSegmentAsync(segment);
+        PreviewTime(newStart);
     }
 
     /// <summary>Adjust the end time by the given number of frames (positive or negative).</summary>
@@ -595,6 +611,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
         segment.EndTime = newEnd;
         await SaveSegmentAsync(segment);
+        PreviewTime(newEnd);
     }
 
     /// <summary>Persist the segment to the database.</summary>
