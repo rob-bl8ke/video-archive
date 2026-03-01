@@ -168,21 +168,48 @@
                                 </StackPanel>
                             </Grid>
 
-                            <!-- Row 3: Delete button -->
-                            <Button Grid.Row="3"
-                                    Click="DeleteSegment_Click"
-                                    Tag="{Binding}"
-                                    ToolTipService.ToolTip="Delete segment"
-                                    HorizontalAlignment="Right"
-                                    Padding="4,2"
-                                    Margin="0,2,0,0">
-                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <FontIcon Glyph="&#xE74D;" FontSize="10"
-                                              Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
-                                    <TextBlock Text="Delete" FontSize="10"
-                                               Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                            <!-- Row 3: Segment transport + Delete -->
+                            <Grid Grid.Row="3" Margin="0,2,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Transport buttons -->
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="2">
+                                    <Button Click="SegmentPlayPause_Click" Tag="{Binding}"
+                                            AutomationProperties.Name="segment-play"
+                                            ToolTipService.ToolTip="Play / Pause segment"
+                                            Padding="4,2" MinWidth="0" MinHeight="0">
+                                        <FontIcon Glyph="&#xE768;" FontSize="12" />
+                                    </Button>
+                                    <Button Click="SegmentStop_Click" Tag="{Binding}"
+                                            ToolTipService.ToolTip="Stop segment playback"
+                                            Padding="4,2" MinWidth="0" MinHeight="0">
+                                        <FontIcon Glyph="&#xE71A;" FontSize="12" />
+                                    </Button>
+                                    <ToggleButton Click="SegmentToggleLoop_Click" Tag="{Binding}"
+                                                  ToolTipService.ToolTip="Toggle loop"
+                                                  Padding="4,2" MinWidth="0" MinHeight="0">
+                                        <FontIcon Glyph="&#xE8EE;" FontSize="12" />
+                                    </ToggleButton>
                                 </StackPanel>
-                            </Button>
+
+                                <!-- Delete button -->
+                                <Button Grid.Column="1"
+                                        Click="DeleteSegment_Click"
+                                        Tag="{Binding}"
+                                        ToolTipService.ToolTip="Delete segment"
+                                        HorizontalAlignment="Right"
+                                        Padding="4,2">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <FontIcon Glyph="&#xE74D;" FontSize="10"
+                                                  Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                        <TextBlock Text="Delete" FontSize="10"
+                                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
                         </Grid>
                     </Border>
                 </DataTemplate>

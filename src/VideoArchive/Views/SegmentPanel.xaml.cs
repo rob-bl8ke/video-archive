@@ -1,7 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using VideoArchive.Models;
 using VideoArchive.ViewModels;
 
@@ -24,8 +28,97 @@ public sealed partial class SegmentPanel : UserControl
         ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(VideoPlayerViewModel.Segments))
+            {
                 SegmentsList.ItemsSource = ViewModel.Segments;
+                // Defer refresh until the new containers have rendered
+                SegmentsList.LayoutUpdated += OnSegmentsLayoutUpdated;
+            }
+
+            if (e.PropertyName is nameof(VideoPlayerViewModel.ActiveSegment)
+                                or nameof(VideoPlayerViewModel.IsSegmentLooping)
+                                or nameof(VideoPlayerViewModel.State))
+            {
+                RefreshSegmentPlayStates();
+            }
         };
+    }
+
+    // ── Visual state refresh ──────────────────────────────────────────
+
+    private void OnSegmentsLayoutUpdated(object? sender, object e)
+    {
+        SegmentsList.LayoutUpdated -= OnSegmentsLayoutUpdated;
+        RefreshSegmentPlayStates();
+    }
+
+    /// <summary>
+    /// Updates the play-button glyph/style, loop-toggle checked state, and card
+    /// border highlight for every visible segment container.
+    /// </summary>
+    private void RefreshSegmentPlayStates()
+    {
+        var activeId      = ViewModel.ActiveSegment?.Id;
+        var isPlaying     = ViewModel.State == PlaybackState.Playing;
+        var isLooping     = ViewModel.IsSegmentLooping;
+        var accentBrush   = new SolidColorBrush(Colors.SteelBlue);
+        var defaultBrush  = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
+        var accentStyle   = (Style)Application.Current.Resources["AccentButtonStyle"];
+
+        foreach (var segment in ViewModel.Segments)
+        {
+            if (SegmentsList.ContainerFromItem(segment) is not ListViewItem container)
+                continue;
+
+            bool isActive          = segment.Id == activeId;
+            bool isActiveAndPlaying = isActive && isPlaying;
+
+            // Card border highlight
+            if (FindFirstDescendant<Border>(container) is Border card)
+            {
+                card.BorderBrush     = isActive ? accentBrush : defaultBrush;
+                card.BorderThickness = isActive ? new Thickness(2) : new Thickness(1);
+            }
+
+            // Play/Pause button — accent style + pause glyph when this segment is playing
+            var playBtn = FindDescendants<Button>(container)
+                          .FirstOrDefault(b => AutomationProperties.GetName(b) == "segment-play");
+            if (playBtn is not null)
+            {
+                playBtn.Style = isActiveAndPlaying ? accentStyle : null;
+                if (playBtn.Content is FontIcon fi)
+                    fi.Glyph = isActiveAndPlaying ? "\uE769" : "\uE768"; // Pause : Play
+            }
+
+            // Loop ToggleButton checked state
+            if (FindFirstDescendant<ToggleButton>(container) is ToggleButton loopBtn)
+                loopBtn.IsChecked = isLooping;
+        }
+    }
+
+    // ── Visual tree helpers ───────────────────────────────────────────
+
+    private static T? FindFirstDescendant<T>(DependencyObject parent) where T : DependencyObject
+    {
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T match) return match;
+            var result = FindFirstDescendant<T>(child);
+            if (result is not null) return result;
+        }
+        return null;
+    }
+
+    private static IEnumerable<T> FindDescendants<T>(DependencyObject parent) where T : DependencyObject
+    {
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T match) yield return match;
+            foreach (var d in FindDescendants<T>(child)) yield return d;
+        }
     }
 
     // ── Add / Delete ─────────────────────────────────────────────────
@@ -120,5 +213,23 @@ public sealed partial class SegmentPanel : UserControl
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
             ViewModel.AdjustEndTimeCommand.Execute((segment, 5));
+    }
+
+    // ── Segment transport ────────────────────────────────────────────
+
+    private void SegmentPlayPause_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is VideoSegment segment)
+            ViewModel.SegmentPlayPauseCommand.Execute(segment);
+    }
+
+    private void SegmentStop_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.SegmentStopCommand.Execute(null);
+    }
+
+    private void SegmentToggleLoop_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.SegmentToggleLoopCommand.Execute(null);
     }
 }

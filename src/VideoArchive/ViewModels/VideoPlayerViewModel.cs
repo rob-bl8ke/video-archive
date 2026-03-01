@@ -169,10 +169,19 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private ObservableCollection<VideoSegment> _segments = [];
 
+    /// <summary>The segment currently being played (null when not in segment playback mode).</summary>
+    [ObservableProperty]
+    private VideoSegment? _activeSegment;
+
+    /// <summary>When true, segment playback loops back to StartTime on reaching EndTime.</summary>
+    [ObservableProperty]
+    private bool _isSegmentLooping;
+
     private bool _isSeeking;
 
     /// <summary>
     /// Called by the DispatcherQueue timer to update position/time display.
+    /// Also enforces segment playback boundaries.
     /// </summary>
     public void UpdateTimeline()
     {
@@ -185,6 +194,20 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
         CurrentTimeText = FormatTime(current);
         TotalTimeText = FormatTime(total);
+
+        // Segment boundary enforcement
+        if (ActiveSegment is not null && _mediaPlayer.Time >= (long)ActiveSegment.EndTime.TotalMilliseconds)
+        {
+            if (IsSegmentLooping)
+            {
+                SeekToTime(ActiveSegment.StartTime);
+            }
+            else
+            {
+                Task.Run(() => _mediaPlayer.Pause());
+                StopSegmentPlayback();
+            }
+        }
     }
 
     /// <summary>
@@ -207,10 +230,62 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         _mediaPlayer.Volume = value;
     }
 
+    /// <summary>Seek the media player to the specified time.</summary>
+    private void SeekToTime(TimeSpan time)
+    {
+        Task.Run(() => _mediaPlayer.Time = (long)time.TotalMilliseconds);
+    }
+
+    /// <summary>Exit segment playback mode without affecting the media player state.</summary>
+    private void StopSegmentPlayback()
+    {
+        ActiveSegment = null;
+        IsSegmentLooping = false;
+    }
+
+    [RelayCommand]
+    private void SegmentPlayPause(VideoSegment? segment)
+    {
+        if (_disposed || segment is null) return;
+
+        if (ActiveSegment?.Id == segment.Id)
+        {
+            // Same segment — toggle play/pause
+            if (State == PlaybackState.Playing)
+                Task.Run(() => _mediaPlayer.Pause());
+            else
+                Task.Run(() => _mediaPlayer.Play());
+            return;
+        }
+
+        // Different segment (or no active segment) — start playing this one
+        ActiveSegment = segment;
+        SeekToTime(segment.StartTime);
+
+        if (State != PlaybackState.Playing)
+            Task.Run(() => _mediaPlayer.Play());
+    }
+
+    [RelayCommand]
+    private void SegmentStop()
+    {
+        if (ActiveSegment is null) return;
+        Task.Run(() => _mediaPlayer.Pause());
+        StopSegmentPlayback();
+    }
+
+    [RelayCommand]
+    private void SegmentToggleLoop()
+    {
+        IsSegmentLooping = !IsSegmentLooping;
+    }
+
     [RelayCommand]
     private void PlayPause()
     {
         if (_disposed) return;
+
+        StopSegmentPlayback();
 
         switch (State)
         {
@@ -246,6 +321,8 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     private void Stop()
     {
         if (State == PlaybackState.Idle) return;
+
+        StopSegmentPlayback();
 
         // Stop must be called from a thread pool thread to avoid deadlock
         Task.Run(() => _mediaPlayer.Stop());
