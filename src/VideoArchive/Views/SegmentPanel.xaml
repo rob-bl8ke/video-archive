@@ -45,8 +45,9 @@
                             BorderThickness="1"
                             CornerRadius="4"
                             Padding="8,6"
-                            Margin="0,2">
-                        <Grid RowSpacing="4">
+                            Margin="0,2"
+                            Tapped="SegmentCard_Tapped">
+                        <Grid RowSpacing="4" Background="Transparent">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
@@ -62,12 +63,13 @@
                                      FontWeight="SemiBold"
                                      Padding="4,2"
                                      BorderThickness="0,0,0,1"
+                                     GotFocus="SegmentName_GotFocus"
                                      LostFocus="SegmentName_LostFocus"
                                      KeyDown="SegmentName_KeyDown"
                                      Tag="{Binding}" />
 
                             <!-- Row 1: Start time with adjustments -->
-                            <Grid Grid.Row="1" ColumnSpacing="2">
+                            <Grid Grid.Row="1" ColumnSpacing="2" Background="Transparent">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="36" />
                                     <ColumnDefinition Width="*" />
@@ -95,7 +97,7 @@
                                 </StackPanel>
 
                                 <!-- 2-row × 5-col uniform button grid -->
-                                <Grid Grid.Column="2" RowSpacing="1" ColumnSpacing="1">
+                                <Grid Grid.Column="2" RowSpacing="1" ColumnSpacing="1" Background="Transparent">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
@@ -179,7 +181,7 @@
                             </Grid>
 
                             <!-- Row 2: End time with adjustments -->
-                            <Grid Grid.Row="2" ColumnSpacing="2">
+                            <Grid Grid.Row="2" ColumnSpacing="2" Background="Transparent">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="36" />
                                     <ColumnDefinition Width="*" />
@@ -207,7 +209,7 @@
                                 </StackPanel>
 
                                 <!-- 2-row × 5-col uniform button grid -->
-                                <Grid Grid.Column="2" RowSpacing="1" ColumnSpacing="1">
+                                <Grid Grid.Column="2" RowSpacing="1" ColumnSpacing="1" Background="Transparent">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
@@ -291,7 +293,7 @@
                             </Grid>
 
                             <!-- Row 3: Segment transport + Delete -->
-                            <Grid Grid.Row="3" Margin="0,2,0,0">
+                            <Grid Grid.Row="3" Margin="0,2,0,0" Background="Transparent">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />

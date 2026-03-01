@@ -173,6 +173,13 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private VideoSegment? _activeSegment;
 
+    /// <summary>
+    /// The segment currently selected for editing/focus. Independent of playback.
+    /// Cleared when the main global Play/Pause starts free (non-segment) playback.
+    /// </summary>
+    [ObservableProperty]
+    private VideoSegment? _selectedSegment;
+
     /// <summary>When true, segment playback loops back to StartTime on reaching EndTime.</summary>
     [ObservableProperty]
     private bool _isSegmentLooping;
@@ -262,6 +269,19 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         IsSegmentLooping = false;
     }
 
+    /// <summary>
+    /// Selects a segment, seeks to its StartTime, and begins playback.
+    /// Called when a segment card is tapped or its name field receives focus.
+    /// </summary>
+    public void ActivateSegment(VideoSegment segment)
+    {
+        SelectedSegment = segment;
+        ActiveSegment   = segment;
+        SeekToTime(segment.StartTime);
+        if (State != PlaybackState.Playing)
+            Task.Run(() => _mediaPlayer.Play());
+    }
+
     [RelayCommand]
     private void SegmentPlayPause(VideoSegment? segment)
     {
@@ -305,6 +325,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         if (_disposed) return;
 
         StopSegmentPlayback();
+        SelectedSegment = null;   // Main controls override any editing selection
 
         switch (State)
         {

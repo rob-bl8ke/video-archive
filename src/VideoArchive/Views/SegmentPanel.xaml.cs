@@ -35,6 +35,7 @@ public sealed partial class SegmentPanel : UserControl
             }
 
             if (e.PropertyName is nameof(VideoPlayerViewModel.ActiveSegment)
+                                or nameof(VideoPlayerViewModel.SelectedSegment)
                                 or nameof(VideoPlayerViewModel.IsSegmentLooping)
                                 or nameof(VideoPlayerViewModel.State)
                                 or nameof(VideoPlayerViewModel.VideoFps))
@@ -59,26 +60,54 @@ public sealed partial class SegmentPanel : UserControl
     private void RefreshSegmentPlayStates()
     {
         var activeId     = ViewModel.ActiveSegment?.Id;
+        var selectedId   = ViewModel.SelectedSegment?.Id;
         var isPlaying    = ViewModel.State == PlaybackState.Playing;
         var isLooping    = ViewModel.IsSegmentLooping;
         var fps          = ViewModel.VideoFps;
-        var accentBrush  = new SolidColorBrush(Colors.SteelBlue);
         var defaultBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
         var accentStyle  = (Style)Application.Current.Resources["AccentButtonStyle"];
+
+        // Colour tokens:
+        //   selected (editing focus) → SystemAccentColor border, 2px
+        //   active + playing (segment playback) → SteelBlue border, 2px
+        //   active + paused (segment paused) → SteelBlue border, 1px
+        //   default → CardStrokeColor, 1px
+        var selectedBrush = new SolidColorBrush(
+            (Windows.UI.Color)Application.Current.Resources["SystemAccentColor"]);
+        var playingBrush  = new SolidColorBrush(Colors.SteelBlue);
 
         foreach (var segment in ViewModel.Segments)
         {
             if (SegmentsList.ContainerFromItem(segment) is not ListViewItem container)
                 continue;
 
-            bool isActive          = segment.Id == activeId;
+            bool isActive           = segment.Id == activeId;
+            bool isSelected         = segment.Id == selectedId;
             bool isActiveAndPlaying = isActive && isPlaying;
 
-            // Card border highlight
+            // Card border — priority: playing > selected > default
             if (FindFirstDescendant<Border>(container) is Border card)
             {
-                card.BorderBrush     = isActive ? accentBrush : defaultBrush;
-                card.BorderThickness = isActive ? new Thickness(2) : new Thickness(1);
+                if (isActiveAndPlaying)
+                {
+                    card.BorderBrush     = playingBrush;
+                    card.BorderThickness = new Thickness(2);
+                }
+                else if (isSelected)
+                {
+                    card.BorderBrush     = selectedBrush;
+                    card.BorderThickness = new Thickness(2);
+                }
+                else if (isActive) // active but paused mid-segment
+                {
+                    card.BorderBrush     = playingBrush;
+                    card.BorderThickness = new Thickness(1);
+                }
+                else
+                {
+                    card.BorderBrush     = defaultBrush;
+                    card.BorderThickness = new Thickness(1);
+                }
             }
 
             // Play/Pause button — accent style + pause glyph when this segment is playing
@@ -154,8 +183,21 @@ public sealed partial class SegmentPanel : UserControl
         if (sender is Button btn && btn.Tag is VideoSegment segment)
             ViewModel.DeleteSegmentCommand.Execute(segment);
     }
+    // ── Card activation (non-button areas: TextBlocks, grid space) ──────
+
+    private void SegmentCard_Tapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (sender is Border border && border.DataContext is VideoSegment segment)
+            ViewModel.ActivateSegment(segment);
+    }
 
     // ── Rename ───────────────────────────────────────────────────────
+
+    private void SegmentName_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox tb && tb.Tag is VideoSegment segment)
+            ViewModel.ActivateSegment(segment);
+    }
 
     private void SegmentName_LostFocus(object sender, RoutedEventArgs e)
     {
@@ -177,13 +219,19 @@ public sealed partial class SegmentPanel : UserControl
     private void SetStartFromPlayhead_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.SetStartTime(segment);
+        }
     }
 
     private void SetEndFromPlayhead_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.SetEndTime(segment);
+        }
     }
 
     // ── Start time adjustments ───────────────────────────────────────
@@ -191,49 +239,73 @@ public sealed partial class SegmentPanel : UserControl
     private void AdjustStartMinus5_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustStartTimeCommand.Execute((segment, -5.0));
+        }
     }
 
     private void AdjustStartMinus1_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustStartTimeCommand.Execute((segment, -1.0));
+        }
     }
 
     private void AdjustStartMinusTenth_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustStartTimeCommand.Execute((segment, -0.1));
+        }
     }
 
     private void AdjustStartMinus1Frame_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustStartFrameCommand.Execute((segment, -1));
+        }
     }
 
     private void AdjustStartPlus1Frame_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustStartFrameCommand.Execute((segment, 1));
+        }
     }
 
     private void AdjustStartPlusTenth_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustStartTimeCommand.Execute((segment, 0.1));
+        }
     }
 
     private void AdjustStartPlus1_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustStartTimeCommand.Execute((segment, 1.0));
+        }
     }
 
     private void AdjustStartPlus5_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustStartTimeCommand.Execute((segment, 5.0));
+        }
     }
 
     // ── End time adjustments ─────────────────────────────────────────
@@ -241,49 +313,73 @@ public sealed partial class SegmentPanel : UserControl
     private void AdjustEndMinus5_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustEndTimeCommand.Execute((segment, -5.0));
+        }
     }
 
     private void AdjustEndMinus1_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustEndTimeCommand.Execute((segment, -1.0));
+        }
     }
 
     private void AdjustEndMinusTenth_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustEndTimeCommand.Execute((segment, -0.1));
+        }
     }
 
     private void AdjustEndMinus1Frame_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustEndFrameCommand.Execute((segment, -1));
+        }
     }
 
     private void AdjustEndPlus1Frame_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustEndFrameCommand.Execute((segment, 1));
+        }
     }
 
     private void AdjustEndPlusTenth_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustEndTimeCommand.Execute((segment, 0.1));
+        }
     }
 
     private void AdjustEndPlus1_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustEndTimeCommand.Execute((segment, 1.0));
+        }
     }
 
     private void AdjustEndPlus5_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.AdjustEndTimeCommand.Execute((segment, 5.0));
+        }
     }
 
     // ── Segment transport ────────────────────────────────────────────
@@ -291,16 +387,24 @@ public sealed partial class SegmentPanel : UserControl
     private void SegmentPlayPause_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is VideoSegment segment)
+        {
+            ViewModel.SelectedSegment = segment;
             ViewModel.SegmentPlayPauseCommand.Execute(segment);
+        }
     }
 
+    // Stop: select the segment but do NOT seek/play
     private void SegmentStop_Click(object sender, RoutedEventArgs e)
     {
+        if (sender is Button btn && btn.Tag is VideoSegment segment)
+            ViewModel.SelectedSegment = segment;
         ViewModel.SegmentStopCommand.Execute(null);
     }
 
     private void SegmentToggleLoop_Click(object sender, RoutedEventArgs e)
     {
+        if (sender is ToggleButton tb && tb.Tag is VideoSegment segment)
+            ViewModel.SelectedSegment = segment;
         ViewModel.SegmentToggleLoopCommand.Execute(null);
     }
 }
