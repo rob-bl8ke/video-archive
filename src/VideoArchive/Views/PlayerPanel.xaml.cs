@@ -158,6 +158,16 @@ public sealed partial class PlayerPanel : UserControl
         _timer.Start();
 
         PositionVideoWindow();
+
+        // The Slider marks PointerPressed/Released as handled internally, so XAML
+        // attribute handlers are never invoked. Use AddHandler with handledEventsToo
+        // so we can detect when the user starts and finishes dragging the thumb.
+        SeekSlider.AddHandler(PointerPressedEvent,
+            new PointerEventHandler(SeekSlider_PointerPressed), handledEventsToo: true);
+        SeekSlider.AddHandler(PointerReleasedEvent,
+            new PointerEventHandler(SeekSlider_PointerReleased), handledEventsToo: true);
+        SeekSlider.AddHandler(PointerCaptureLostEvent,
+            new PointerEventHandler(SeekSlider_PointerCaptureLost), handledEventsToo: true);
     }
 
     private void PlayerPanel_Unloaded(object sender, RoutedEventArgs e)
@@ -320,17 +330,22 @@ public sealed partial class PlayerPanel : UserControl
         ViewModel.StopCommand.Execute(null);
     }
 
-    private void SeekSlider_ManipulationStarting(object sender, ManipulationStartingRoutedEventArgs e)
+    private void SeekSlider_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
         _sliderDragging = true;
         ViewModel.BeginSeek();
     }
 
-    private void SeekSlider_ManipulationCompleted(object sender, ManipulationCompletedRoutedEventArgs e)
+    private void SeekSlider_PointerReleased(object sender, PointerRoutedEventArgs e) => CommitSeek();
+
+    private void SeekSlider_PointerCaptureLost(object sender, PointerRoutedEventArgs e) => CommitSeek();
+
+    private void CommitSeek()
     {
+        if (!_sliderDragging) return;
+        _sliderDragging = false;
         ViewModel.Position = SeekSlider.Value;
         ViewModel.EndSeek();
-        _sliderDragging = false;
     }
 
     private void SeekSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)

@@ -196,7 +196,8 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     /// </summary>
     public void EndSeek()
     {
-        _mediaPlayer.Position = (float)Position;
+        var pos = (float)Position;
+        Task.Run(() => _mediaPlayer.Position = pos);
         _isSeeking = false;
     }
 

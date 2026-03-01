@@ -141,8 +141,6 @@
                         Minimum="0" Maximum="1"
                         StepFrequency="0.001"
                         ThumbToolTipValueConverter="{x:Null}"
-                        ManipulationStarting="SeekSlider_ManipulationStarting"
-                        ManipulationCompleted="SeekSlider_ManipulationCompleted"
                         ValueChanged="SeekSlider_ValueChanged"
                         VerticalAlignment="Center" />
 
