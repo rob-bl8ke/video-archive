@@ -46,6 +46,14 @@ public sealed partial class MainWindow : Window
         UpdateActivePanel();
         UpdatePlaybackView();
 
+        // Reposition the native video popup while the nav pane slides open/closed.
+        // PaneOpening/PaneClosing → start per-tick tracking via the player timer.
+        // PaneOpened/PaneClosed   → clear the flag and do a final layout-settled reposition.
+        NavView.PaneOpening  += (_, _) => PlayerPanelControl.BeginNavPaneTransition();
+        NavView.PaneClosing  += (_, _) => PlayerPanelControl.BeginNavPaneTransition();
+        NavView.PaneOpened   += (_, _) => PlayerPanelControl.EndNavPaneTransition();
+        NavView.PaneClosed   += (_, _) => PlayerPanelControl.EndNavPaneTransition();
+
         // Load existing videos from DB on startup (one-shot)
         bool _loaded = false;
         this.Activated += async (_, _) =>

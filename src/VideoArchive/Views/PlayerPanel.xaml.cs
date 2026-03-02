@@ -19,6 +19,7 @@ public sealed partial class PlayerPanel : UserControl
     private bool _sliderDragging;
     private bool _isFullscreen;
     private bool _overlayVisible;
+    private bool _navPaneAnimating;
 
     // Win32 subclass for immediate popup repositioning on window move/resize
     private static IntPtr _originalWndProc;
@@ -208,6 +209,22 @@ public sealed partial class PlayerPanel : UserControl
         }
     }
 
+    /// <summary>
+    /// Called when the NavigationView pane begins opening or closing so the timer
+    /// repositions the native popup on every tick during the slide animation.
+    /// </summary>
+    public void BeginNavPaneTransition() => _navPaneAnimating = true;
+
+    /// <summary>
+    /// Called when the NavigationView pane has fully opened or closed.
+    /// Does a final authoritative reposition after layout has settled.
+    /// </summary>
+    public void EndNavPaneTransition()
+    {
+        _navPaneAnimating = false;
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, PositionVideoWindow);
+    }
+
     private static IntPtr GetMainWindowHwnd()
     {
         foreach (var window in WindowHelper.ActiveWindows)
@@ -225,6 +242,11 @@ public sealed partial class PlayerPanel : UserControl
         }
 
         ViewModel.UpdateTimeline();
+
+        // Reposition the native popup on every tick while the nav pane is animating
+        // so the Win32 window tracks the XAML surface through the slide transition.
+        if (_navPaneAnimating)
+            PositionVideoWindow();
 
         if (!_sliderDragging)
             SeekSlider.Value = ViewModel.Position;
