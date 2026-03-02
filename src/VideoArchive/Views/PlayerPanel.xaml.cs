@@ -13,6 +13,7 @@ namespace VideoArchive.Views;
 public sealed partial class PlayerPanel : UserControl
 {
     private VideoPlayerViewModel ViewModel { get; }
+    private MainViewModel MainViewModel { get; }
     private NativeVideoWindow? _videoWindow;
     private DispatcherQueueTimer? _timer;
     private bool _sliderDragging;
@@ -64,6 +65,7 @@ public sealed partial class PlayerPanel : UserControl
     public PlayerPanel()
     {
         ViewModel = App.Services.GetRequiredService<VideoPlayerViewModel>();
+        MainViewModel = App.Services.GetRequiredService<MainViewModel>();
         this.InitializeComponent();
 
         // Bind VM property changes to UI elements
@@ -258,6 +260,13 @@ public sealed partial class PlayerPanel : UserControl
     private void Fullscreen_Click(object sender, RoutedEventArgs e) => ToggleFullscreen();
 
     private void VideoSurface_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => ToggleFullscreen();
+
+    private void BackToSearch_Click(object sender, RoutedEventArgs e)
+    {
+        // Stop playback before returning to the search view
+        ViewModel.StopCommand.Execute(null);
+        MainViewModel.NavigateToSearchCommand.Execute(null);
+    }
 
     public void ToggleFullscreen()
     {

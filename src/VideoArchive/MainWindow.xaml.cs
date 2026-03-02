@@ -1,11 +1,8 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Windowing;
-using VideoArchive.Data;
 using VideoArchive.Helpers;
-using VideoArchive.Models;
 using VideoArchive.Services;
 using VideoArchive.ViewModels;
 using Windows.Graphics;
@@ -29,40 +26,25 @@ public sealed partial class MainWindow : Window
         // Save window placement on close
         this.Closed += MainWindow_Closed;
 
-        // React to view mode changes
+        // React to view mode and navigation changes
         ViewModel.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.IsGalleryView))
-            {
-                UpdateViewVisibility();
-                // Keep toggle buttons in sync
-                DetailsToggle.IsChecked = !ViewModel.IsGalleryView;
-            }
-            if (e.PropertyName == nameof(MainViewModel.IsPlayerVisible))
-            {
-                // Resize the player row when the panel toggles
-                PlayerRow.Height = ViewModel.IsPlayerVisible
-                    ? new GridLength(2, GridUnitType.Star)
-                    : new GridLength(0);
-            }
+                SearchPanelControl.ScrollToSelected();
+
+            if (e.PropertyName == nameof(MainViewModel.ActivePlaybackView))
+                UpdatePlaybackView();
+
+            if (e.PropertyName == nameof(MainViewModel.ActivePanel))
+                UpdateActivePanel();
         };
 
-        // Disable library/tag toolbar buttons while video is playing
-        var playerVm = App.Services.GetRequiredService<VideoPlayerViewModel>();
-        playerVm.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(VideoPlayerViewModel.CanInteract))
-            {
-                AddFolderButton.IsEnabled = playerVm.CanInteract;
-                RefreshButton.IsEnabled = playerVm.CanInteract;
-                ManageTagsButton.IsEnabled = playerVm.CanInteract;
-            }
-        };
-
-        // Select Library nav item by default
+        // Select Search & Playback by default
         NavView.SelectedItem = NavView.MenuItems[0];
-        DetailsToggle.IsChecked = !ViewModel.IsGalleryView;
-        UpdateViewVisibility();
+
+        // Initial panel state
+        UpdateActivePanel();
+        UpdatePlaybackView();
 
         // Load existing videos from DB on startup (one-shot)
         bool _loaded = false;
@@ -112,174 +94,47 @@ public sealed partial class MainWindow : Window
     {
         if (args.SelectedItemContainer?.Tag is string tag)
         {
-            var isLibrary = tag == "Library";
-            SettingsPageControl.Visibility = isLibrary ? Visibility.Collapsed : Visibility.Visible;
-            GalleryViewControl.Visibility = isLibrary && ViewModel.IsGalleryView ? Visibility.Visible : Visibility.Collapsed;
-            DetailsViewControl.Visibility = isLibrary && !ViewModel.IsGalleryView ? Visibility.Visible : Visibility.Collapsed;
-        }
-    }
-
-    private void DetailsToggle_Click(object sender, RoutedEventArgs e)
-    {
-        ViewModel.IsGalleryView = false;
-        UpdateViewVisibility();
-    }
-
-    private void UpdateViewVisibility()
-    {
-        var isLibrary = SettingsPageControl.Visibility == Visibility.Collapsed;
-        if (isLibrary)
-        {
-            GalleryViewControl.Visibility = ViewModel.IsGalleryView ? Visibility.Visible : Visibility.Collapsed;
-            DetailsViewControl.Visibility = ViewModel.IsGalleryView ? Visibility.Collapsed : Visibility.Visible;
-
-            // Scroll the selected video into view in the newly visible view
-            if (ViewModel.IsGalleryView)
-                GalleryViewControl.ScrollToSelected();
-            else
-                DetailsViewControl.ScrollToSelected();
-        }
-    }
-
-    private async void AddFolderButton_Click(object sender, RoutedEventArgs e)
-    {
-        var picker = new Windows.Storage.Pickers.FolderPicker();
-        picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.VideosLibrary;
-        picker.FileTypeFilter.Add("*");
-
-        // Initialize with window handle (required for unpackaged apps)
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-
-        var folder = await picker.PickSingleFolderAsync();
-        if (folder is null) return;
-
-        using var scope = App.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<VideoArchiveContext>();
-
-        // Skip if folder is already registered
-        if (await context.LibraryFolders.AnyAsync(f => f.Path == folder.Path))
-            return;
-
-        context.LibraryFolders.Add(new LibraryFolder { Path = folder.Path });
-        await context.SaveChangesAsync();
-    }
-
-    private async void RefreshButton_Click(object sender, RoutedEventArgs e)
-    {
-        // Check for library folders
-        bool hasFolders;
-        using (var scope = App.Services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<VideoArchiveContext>();
-            hasFolders = await context.LibraryFolders.AnyAsync(f => f.IsActive);
-        }
-
-        if (!hasFolders)
-        {
-            var noFolderDialog = new ContentDialog
+            ViewModel.ActivePanel = tag switch
             {
-                XamlRoot = Content.XamlRoot,
-                Title = "No Library Folders",
-                Content = "No library folders configured. Use the \"Add Library Folder\" button to add a video folder first.",
-                CloseButtonText = "OK",
+                "TagManagement" => MainPanel.TagManagement,
+                "Settings"      => MainPanel.Settings,
+                _               => MainPanel.SearchPlayback,
             };
-            await DialogHelper.ShowWithOverlayHiddenAsync(noFolderDialog);
-            return;
         }
-
-        // Build progress UI
-        var cts = new CancellationTokenSource();
-        var progressText = new TextBlock { Text = "Preparing scan..." };
-        var progressBar = new ProgressBar { IsIndeterminate = true, Margin = new Thickness(0, 12, 0, 0) };
-        var panel = new StackPanel();
-        panel.Children.Add(progressText);
-        panel.Children.Add(progressBar);
-
-        var progressDialog = new ContentDialog
-        {
-            XamlRoot = Content.XamlRoot,
-            Title = "Scanning Library",
-            Content = panel,
-            CloseButtonText = "Cancel",
-        };
-        progressDialog.CloseButtonClick += (_, _) => cts.Cancel();
-
-        var progress = new Progress<(int current, int total)>(p =>
-        {
-            progressBar.IsIndeterminate = false;
-            progressBar.Maximum = p.total;
-            progressBar.Value = p.current;
-            progressText.Text = $"Processing: {p.current} / {p.total} videos";
-        });
-
-        var scanner = App.Services.GetRequiredService<ILibraryScanner>();
-
-        // Show dialog and run scan concurrently
-        HideVideoOverlay();
-        _ = progressDialog.ShowAsync();
-
-        ScanResult? result = null;
-        try
-        {
-            result = await Task.Run(() => scanner.ScanAsync(progress, cts.Token));
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
-            progressDialog.Hide();
-            var errorDialog = new ContentDialog
-            {
-                XamlRoot = Content.XamlRoot,
-                Title = "Scan Error",
-                Content = $"An error occurred during scanning:\n{ex.Message}",
-                CloseButtonText = "OK",
-            };
-            await DialogHelper.ShowWithOverlayHiddenAsync(errorDialog);
-            ShowVideoOverlay();
-            return;
-        }
-
-        progressDialog.Hide();
-
-        // Reload video list
-        await ViewModel.LoadVideosCommand.ExecuteAsync(null);
-
-        // Show scan summary
-        if (result is not null)
-        {
-            var summary = $"Added {result.NewVideos} video(s), removed {result.RemovedVideos}.";
-            if (result.Errors > 0)
-                summary += $"\n{result.Errors} file(s) could not be read (corrupted or unsupported format).";
-
-            var summaryDialog = new ContentDialog
-            {
-                XamlRoot = Content.XamlRoot,
-                Title = "Scan Complete",
-                Content = summary,
-                CloseButtonText = "OK",
-            };
-            await DialogHelper.ShowWithOverlayHiddenAsync(summaryDialog);
-        }
-
-        ShowVideoOverlay();
     }
 
-    private async void ManageTagsButton_Click(object sender, RoutedEventArgs e)
+    private void UpdateActivePanel()
     {
-        await VideoArchive.Views.TagManagerDialog.ShowAsync(Content.XamlRoot);
+        var isSearch = ViewModel.ActivePanel == MainPanel.SearchPlayback;
+        var isTagMgmt = ViewModel.ActivePanel == MainPanel.TagManagement;
+        var isSettings = ViewModel.ActivePanel == MainPanel.Settings;
+
+        SearchPlaybackHost.Visibility = isSearch ? Visibility.Visible : Visibility.Collapsed;
+        TagsPanelControl.Visibility  = isTagMgmt ? Visibility.Visible : Visibility.Collapsed;
+        SettingsPanelControl.Visibility = isSettings ? Visibility.Visible : Visibility.Collapsed;
+
+        // TabsPanel only appears in Search & Playback
+        TabsPanelControl.Visibility = isSearch ? Visibility.Visible : Visibility.Collapsed;
+
+        // Hide the native video window when leaving Search & Playback
+        if (!isSearch)
+            PlayerPanelControl.HideOverlay();
+        else
+            UpdatePlaybackView();
     }
 
-    private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    private void UpdatePlaybackView()
     {
-        if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
-        {
-            ViewModel.SearchText = sender.Text;
-        }
+        var isPlayer = ViewModel.ActivePlaybackView == PlaybackView.PlayerView;
+
+        SearchPanelControl.Visibility  = isPlayer ? Visibility.Collapsed : Visibility.Visible;
+        PlayerPanelControl.Visibility  = isPlayer ? Visibility.Visible   : Visibility.Collapsed;
+
+        if (isPlayer)
+            PlayerPanelControl.ShowOverlay();
+        else
+            PlayerPanelControl.HideOverlay();
     }
 
-    private void SearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
-    {
-        ViewModel.SearchText = args.QueryText ?? string.Empty;
-    }
 }
+

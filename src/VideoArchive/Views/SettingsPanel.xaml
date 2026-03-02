@@ -1,5 +1,5 @@
 <UserControl
-    x:Class="VideoArchive.Views.SettingsPage"
+    x:Class="VideoArchive.Views.SettingsPanel"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
@@ -145,18 +145,6 @@
                                SpinButtonPlacementMode="Compact"
                                ValueChanged="MinDurationBox_ValueChanged" />
                 </Grid>
-            </StackPanel>
-
-            <!-- Tag Management shortcut -->
-            <StackPanel Spacing="8">
-                <TextBlock Text="Tags"
-                           Style="{ThemeResource SubtitleTextBlockStyle}" />
-                <Button Click="ManageTags_Click">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE1CB;" FontSize="14" />
-                        <TextBlock Text="Manage Tags" />
-                    </StackPanel>
-                </Button>
             </StackPanel>
 
             <!-- Status -->

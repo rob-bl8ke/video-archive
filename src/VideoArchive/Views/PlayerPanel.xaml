@@ -1,26 +1,36 @@
 <UserControl
     x:Class="VideoArchive.Views.PlayerPanel"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:VideoArchive.Views">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
           BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
           BorderThickness="0,1,0,0">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" MinHeight="180" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
+        <!-- Back to search header -->
+        <Grid Grid.Row="0" Padding="8,6" Background="{ThemeResource LayerFillColorDefaultBrush}">
+            <Button x:Name="BackToSearchButton"
+                    Click="BackToSearch_Click"
+                    ToolTipService.ToolTip="Back to Search"
+                    Padding="6,4"
+                    Background="Transparent"
+                    BorderThickness="0">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon Glyph="&#xE72B;" FontSize="14" />
+                    <TextBlock Text="Back to Search" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
 
         <!-- Video surface area (native popup window renders on top of this) -->
         <Border x:Name="VideoSurface"
-                Grid.Row="0" Grid.Column="0"
+                Grid.Row="1"
                 Background="Black"
                 MinHeight="180"
                 SizeChanged="VideoSurface_SizeChanged"
@@ -39,20 +49,8 @@
             </StackPanel>
         </Border>
 
-        <!-- Tabbed side panel: Segments | Tags -->
-        <Pivot Grid.Row="0" Grid.Column="1"
-               Width="340"
-               Background="{ThemeResource LayerFillColorDefaultBrush}">
-            <PivotItem Header="Segments">
-                <local:SegmentPanel />
-            </PivotItem>
-            <PivotItem Header="Tags">
-                <local:TagPanel />
-            </PivotItem>
-        </Pivot>
-
         <!-- Now playing + seek bar -->
-        <Grid Grid.Row="1" Grid.ColumnSpan="2" Padding="12,8,12,4">
+        <Grid Grid.Row="2" Padding="12,8,12,4">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -97,7 +95,7 @@
         </Grid>
 
         <!-- Transport controls -->
-        <StackPanel Grid.Row="2" Grid.ColumnSpan="2"
+        <StackPanel Grid.Row="3"
                     Orientation="Horizontal"
                     HorizontalAlignment="Center"
                     Spacing="8"

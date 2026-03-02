@@ -93,7 +93,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(CanPlay));
 
             if (e.PropertyName == nameof(MainViewModel.SelectedVideo)
-                && mainVm.IsPlayerVisible
+                && mainVm.ActivePlaybackView == PlaybackView.PlayerView
                 && mainVm.SelectedVideo is not null
                 && mainVm.SelectedVideo.Id != CurrentVideo?.Id)
             {

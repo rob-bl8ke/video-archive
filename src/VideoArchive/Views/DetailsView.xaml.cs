@@ -104,29 +104,7 @@ public sealed partial class DetailsView : UserControl
     private void PlayMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel.SelectedVideo is not null)
-        {
-            ViewModel.IsPlayerVisible = true;
-            // Find the PlayerPanel and start playback
-            var mainWindow = VideoArchive.Views.WindowHelper.ActiveWindows.FirstOrDefault();
-            if (mainWindow?.Content is Grid rootGrid)
-            {
-                var playerPanel = FindPlayerPanel(rootGrid);
-                playerPanel?.PlayVideo(ViewModel.SelectedVideo);
-            }
-        }
-    }
-
-    private static PlayerPanel? FindPlayerPanel(DependencyObject parent)
-    {
-        var count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(parent);
-        for (int i = 0; i < count; i++)
-        {
-            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(parent, i);
-            if (child is PlayerPanel panel) return panel;
-            var result = FindPlayerPanel(child);
-            if (result is not null) return result;
-        }
-        return null;
+            ViewModel.NavigateToPlayerCommand.Execute(ViewModel.SelectedVideo);
     }
 
     private async void AddTagsMenuItem_Click(object sender, RoutedEventArgs e)

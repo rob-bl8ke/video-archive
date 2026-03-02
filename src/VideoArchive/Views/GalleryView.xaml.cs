@@ -63,6 +63,18 @@ public sealed partial class GalleryView : UserControl
         }
     }
 
+    private void VideoGrid_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+    {
+        if (ViewModel.SelectedVideo is not null)
+            ViewModel.NavigateToPlayerCommand.Execute(ViewModel.SelectedVideo);
+    }
+
+    private void PlayMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedVideo is not null)
+            ViewModel.NavigateToPlayerCommand.Execute(ViewModel.SelectedVideo);
+    }
+
     /// <summary>
     /// Helper for x:Bind — returns Visible when ThumbnailPath is null/empty or file doesn't exist.
     /// </summary>

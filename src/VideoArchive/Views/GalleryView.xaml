@@ -41,8 +41,14 @@
         <GridView x:Name="VideoGrid"
                   SelectionMode="Single"
                   SelectionChanged="VideoGrid_SelectionChanged"
+                  DoubleTapped="VideoGrid_DoubleTapped"
                   Padding="0"
                   Margin="0,0,0,12">
+            <GridView.ContextFlyout>
+                <MenuFlyout>
+                    <MenuFlyoutItem Text="Play" Icon="Play" Click="PlayMenuItem_Click" />
+                </MenuFlyout>
+            </GridView.ContextFlyout>
             <GridView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <controls:ItemsWrapGrid Orientation="Horizontal"

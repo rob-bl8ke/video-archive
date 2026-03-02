@@ -1,0 +1,55 @@
+<UserControl
+    x:Class="VideoArchive.Views.TagsPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer Padding="24" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="24" MaxWidth="600" HorizontalAlignment="Left">
+
+            <!-- Header -->
+            <TextBlock Text="Tag Management"
+                       Style="{ThemeResource TitleTextBlockStyle}" />
+
+            <!-- Existing tags -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="Tags"
+                           Style="{ThemeResource SubtitleTextBlockStyle}" />
+                <TextBlock Text="Add, rename, or remove tags used to categorise your videos."
+                           Style="{ThemeResource BodyTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                <ListView x:Name="TagsList"
+                          SelectionMode="None"
+                          MaxHeight="400" />
+            </StackPanel>
+
+            <!-- Add new tag -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="New Tag"
+                           Style="{ThemeResource SubtitleTextBlockStyle}" />
+
+                <TextBox x:Name="TagNameBox"
+                         PlaceholderText="Tag name"
+                         Width="220"
+                         HorizontalAlignment="Left" />
+
+                <ColorPicker x:Name="TagColorPicker"
+                             IsAlphaEnabled="False"
+                             IsHexInputVisible="True"
+                             IsColorSpectrumVisible="False"
+                             IsMoreButtonVisible="True" />
+
+                <Button x:Name="AddTagButton"
+                        Content="Add Tag"
+                        Style="{ThemeResource AccentButtonStyle}"
+                        Click="AddTagButton_Click"
+                        HorizontalAlignment="Left" />
+
+                <TextBlock x:Name="StatusText"
+                           Style="{ThemeResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

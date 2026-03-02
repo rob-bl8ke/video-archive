@@ -10,11 +10,11 @@ using VideoArchive.ViewModels;
 
 namespace VideoArchive.Views;
 
-public sealed partial class SettingsPage : UserControl
+public sealed partial class SettingsPanel : UserControl
 {
     private SettingsViewModel ViewModel { get; }
 
-    public SettingsPage()
+    public SettingsPanel()
     {
         ViewModel = App.Services.GetRequiredService<SettingsViewModel>();
         this.InitializeComponent();
@@ -231,11 +231,6 @@ public sealed partial class SettingsPage : UserControl
                 rootElement.RequestedTheme = theme;
             }
         }
-    }
-
-    private async void ManageTags_Click(object sender, RoutedEventArgs e)
-    {
-        await TagManagerDialog.ShowAsync(this.XamlRoot);
     }
 
     private void DefaultDurationBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)

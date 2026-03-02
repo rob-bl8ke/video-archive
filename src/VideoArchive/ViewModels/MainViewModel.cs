@@ -6,6 +6,9 @@ using VideoArchive.Services;
 
 namespace VideoArchive.ViewModels;
 
+public enum MainPanel { SearchPlayback, TagManagement, Settings }
+public enum PlaybackView { SearchView, PlayerView }
+
 #pragma warning disable MVVMTK0045 // Field-based [ObservableProperty] in WinUI — AOT not required for this app
 public partial class MainViewModel : ObservableObject
 {
@@ -34,11 +37,21 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(HasSelection));
     }
 
+    /// <summary>Controls which top-level panel is visible in MainWindow.</summary>
+    [ObservableProperty]
+    private MainPanel _activePanel = MainPanel.SearchPlayback;
+
+    /// <summary>Controls which sub-view is active within the Search & Playback panel.</summary>
+    [ObservableProperty]
+    private PlaybackView _activePlaybackView = PlaybackView.SearchView;
+
+    /// <summary>True when the right-side TabsPanel is collapsed to its minimal width.</summary>
+    [ObservableProperty]
+    private bool _isTabsPanelCollapsed;
+
+    /// <summary>Controls Gallery vs Details sub-view inside SearchPanel.</summary>
     [ObservableProperty]
     private bool _isGalleryView;
-
-    [ObservableProperty]
-    private bool _isPlayerVisible;
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -55,10 +68,28 @@ public partial class MainViewModel : ObservableObject
         _settings.ViewMode = IsGalleryView ? "Gallery" : "Details";
     }
 
+    /// <summary>Switch to PlayerPanel and load the given video for playback.</summary>
     [RelayCommand]
-    private void TogglePlayer()
+    private void NavigateToPlayer(Video? video = null)
     {
-        IsPlayerVisible = !IsPlayerVisible;
+        if (video is not null)
+            SelectedVideo = video;
+        ActivePanel = MainPanel.SearchPlayback;
+        ActivePlaybackView = PlaybackView.PlayerView;
+    }
+
+    /// <summary>Switch back to SearchPanel.</summary>
+    [RelayCommand]
+    private void NavigateToSearch()
+    {
+        ActivePlaybackView = PlaybackView.SearchView;
+    }
+
+    /// <summary>Toggle the collapsed state of the TabsPanel.</summary>
+    [RelayCommand]
+    private void ToggleTabsPanel()
+    {
+        IsTabsPanelCollapsed = !IsTabsPanelCollapsed;
     }
 
     [RelayCommand]
