@@ -262,6 +262,17 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     {
         if (_currentMedia is null) return;
         var ms = (long)time.TotalMilliseconds;
+
+        // Update the progress bar and time displays immediately from the
+        // known seek target — the timer only runs while playing, so without
+        // this the slider stays frozen after an adjustment.
+        var total = TimeSpan.FromMilliseconds(_mediaPlayer.Length);
+        if (total > TimeSpan.Zero)
+            Position = time.TotalMilliseconds / total.TotalMilliseconds;
+        CurrentTimeText = FormatTime(time);
+        if (total > TimeSpan.Zero)
+            TotalTimeText = FormatTime(total);
+
         if (State == PlaybackState.Playing)
         {
             StopSegmentPlayback();
