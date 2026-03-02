@@ -18,6 +18,7 @@ public sealed partial class PlayerPanel : UserControl
     private DispatcherQueueTimer? _timer;
     private bool _sliderDragging;
     private bool _isFullscreen;
+    private bool _overlayVisible;
 
     // Win32 subclass for immediate popup repositioning on window move/resize
     private static IntPtr _originalWndProc;
@@ -103,6 +104,7 @@ public sealed partial class PlayerPanel : UserControl
             }
             else
             {
+                _overlayVisible = false;
                 _videoWindow?.Hide();
             }
         });
@@ -188,7 +190,11 @@ public sealed partial class PlayerPanel : UserControl
     /// <summary>
     /// Temporarily hide the native video overlay (e.g. while a dialog is open).
     /// </summary>
-    public void HideOverlay() => _videoWindow?.Hide();
+    public void HideOverlay()
+    {
+        _overlayVisible = false;
+        _videoWindow?.Hide();
+    }
 
     /// <summary>
     /// Restore the native video overlay after a dialog has closed.
@@ -196,7 +202,10 @@ public sealed partial class PlayerPanel : UserControl
     public void ShowOverlay()
     {
         if (Visibility == Visibility.Visible)
+        {
+            _overlayVisible = true;
             _videoWindow?.Show();
+        }
     }
 
     private static IntPtr GetMainWindowHwnd()
@@ -248,7 +257,11 @@ public sealed partial class PlayerPanel : UserControl
             if (w > 0 && h > 0)
             {
                 _videoWindow.SetBounds(x, y, w, h);
-                _videoWindow.Show();
+                // Only show the native popup when it has been explicitly enabled via
+                // ShowOverlay(). This prevents a stale WM_WINDOWPOSCHANGED triggered
+                // by ALT+TAB activation from unhiding the window over the wrong panel.
+                if (_overlayVisible)
+                    _videoWindow.Show();
                 NoVideoPlaceholder.Visibility = ViewModel.CurrentVideo is not null
                     ? Visibility.Collapsed : Visibility.Visible;
             }
