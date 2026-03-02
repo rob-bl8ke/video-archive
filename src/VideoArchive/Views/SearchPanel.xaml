@@ -40,15 +40,6 @@
                 <FontIcon Glyph="&#xE14C;" FontSize="16" />
             </ToggleButton>
 
-            <!-- Library refresh -->
-            <AppBarSeparator />
-            <Button x:Name="RefreshButton"
-                    Click="RefreshButton_Click"
-                    ToolTipService.ToolTip="Refresh Library"
-                    Padding="8">
-                <FontIcon Glyph="&#xE72C;" FontSize="16" />
-            </Button>
-
         </StackPanel>
 
         <!-- Content -->

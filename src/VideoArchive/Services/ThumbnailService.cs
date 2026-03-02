@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using LibVLCSharp.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,11 +15,67 @@ public class ThumbnailService : IThumbnailService, IDisposable
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly LibVLC _libVLC;
 
+    // ── Minimal Win32 surface so LibVLC never creates a visible window ──────────
+    private const string HiddenClassName = "VLCThumbSurface";
+    private static bool _wndClassRegistered;
+    private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    private static readonly WndProcDelegate _wndProc = (h, m, w, l) =>
+        DefWindowProcW(h, m, w, l);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct WNDCLASS
+    {
+        public uint style;
+        public IntPtr lpfnWndProc;
+        public int cbClsExtra, cbWndExtra;
+        public IntPtr hInstance, hIcon, hCursor, hbrBackground;
+        public string? lpszMenuName;
+        public string lpszClassName;
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern ushort RegisterClassW(ref WNDCLASS wc);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr CreateWindowExW(uint exStyle, string cls, string? title, uint style, int x, int y, int w, int h, IntPtr parent, IntPtr menu, IntPtr inst, IntPtr param);
+    [DllImport("user32.dll")] private static extern bool DestroyWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] private static extern IntPtr DefWindowProcW(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr GetModuleHandleW(string? name);
+
+    private const uint WS_POPUP         = 0x80000000;
+    private const uint WS_EX_NOACTIVATE = 0x08000000;
+    private const uint WS_EX_TOOLWINDOW = 0x00000080;
+
+    private static void EnsureWndClass()
+    {
+        if (_wndClassRegistered) return;
+        var wc = new WNDCLASS
+        {
+            lpfnWndProc  = Marshal.GetFunctionPointerForDelegate(_wndProc),
+            hInstance    = GetModuleHandleW(null),
+            lpszClassName = HiddenClassName,
+        };
+        RegisterClassW(ref wc);
+        _wndClassRegistered = true;
+    }
+
+    /// <summary>
+    /// Creates a 1×1 hidden, non-activating Win32 window that LibVLC can render
+    /// into. Returns <see cref="IntPtr.Zero"/> on failure.
+    /// </summary>
+    private static IntPtr CreateHiddenSurface() =>
+        CreateWindowExW(
+            WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
+            HiddenClassName, null,
+            WS_POPUP,
+            0, 0, 1, 1,
+            IntPtr.Zero, IntPtr.Zero,
+            GetModuleHandleW(null), IntPtr.Zero);
+    // ────────────────────────────────────────────────────────────────────────────
+
     public ThumbnailService(IServiceScopeFactory scopeFactory)
     {
         _scopeFactory = scopeFactory;
         Directory.CreateDirectory(ThumbnailDir);
         _libVLC = new LibVLC("--no-audio", "--no-video-title-show");
+        EnsureWndClass();
     }
 
     public async Task GenerateAsync(int videoId, string videoPath, CancellationToken cancellationToken = default)
@@ -27,10 +84,15 @@ public class ThumbnailService : IThumbnailService, IDisposable
         if (File.Exists(outputPath)) return;
 
         bool generated = false;
+        var surface = CreateHiddenSurface();
         try
         {
             using var media = new Media(_libVLC, videoPath, FromType.FromPath);
             using var player = new MediaPlayer(_libVLC) { Media = media };
+
+            // Render into the hidden surface so LibVLC never opens a visible window.
+            if (surface != IntPtr.Zero)
+                player.Hwnd = surface;
 
             var playingTcs = new TaskCompletionSource<bool>();
             var snapshotTcs = new TaskCompletionSource<bool>();
@@ -63,6 +125,11 @@ public class ThumbnailService : IThumbnailService, IDisposable
         }
         catch (OperationCanceledException) { throw; }
         catch { /* thumbnail generation failed — skip */ }
+        finally
+        {
+            if (surface != IntPtr.Zero)
+                DestroyWindow(surface);
+        }
 
         // Update video record with thumbnail path
         if (generated && File.Exists(outputPath))
