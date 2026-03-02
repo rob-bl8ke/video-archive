@@ -252,14 +252,32 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Seek to the given time so the user can see the frame — but only when
-    /// not actively playing (paused/stopped). While playing, the seek would
-    /// fight the normal playback position and should be skipped.
+    /// Stop playback (if active) and seek to the given time so the user can
+    /// see the frame. Called by all adjustment buttons — these always pause
+    /// the video and position the playhead to the adjusted time.
+    /// Pause and seek are sequenced in the same thread-pool task so the seek
+    /// never races with the pause command.
     /// </summary>
     private void PreviewTime(TimeSpan time)
     {
-        if (State != PlaybackState.Playing && _currentMedia is not null)
-            SeekToTime(time);
+        if (_currentMedia is null) return;
+        var ms = (long)time.TotalMilliseconds;
+        if (State == PlaybackState.Playing)
+        {
+            StopSegmentPlayback();
+            // Run pause + seek sequentially on the thread pool so they cannot
+            // interleave. Fire-and-forget is safe here; both are synchronous
+            // LibVLC calls on the same thread.
+            Task.Run(() =>
+            {
+                _mediaPlayer.Pause();
+                _mediaPlayer.Time = ms;
+            });
+        }
+        else
+        {
+            Task.Run(() => _mediaPlayer.Time = ms);
+        }
     }
 
     /// <summary>Exit segment playback mode without affecting the media player state.</summary>
@@ -561,7 +579,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
     /// <summary>Adjust the start time by the given number of seconds (positive or negative).</summary>
     [RelayCommand]
-    private async Task AdjustStartTimeAsync((VideoSegment segment, double seconds) args)
+    private void AdjustStartTime((VideoSegment segment, double seconds) args)
     {
         var (segment, seconds) = args;
         var newStart = segment.StartTime + TimeSpan.FromSeconds(seconds);
@@ -575,13 +593,13 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         if (newStart > maxStart) newStart = maxStart;
 
         segment.StartTime = newStart;
-        await SaveSegmentAsync(segment);
+        _ = SaveSegmentAsync(segment);
         PreviewTime(newStart);
     }
 
     /// <summary>Adjust the end time by the given number of seconds (positive or negative).</summary>
     [RelayCommand]
-    private async Task AdjustEndTimeAsync((VideoSegment segment, double seconds) args)
+    private void AdjustEndTime((VideoSegment segment, double seconds) args)
     {
         var (segment, seconds) = args;
         var newEnd = segment.EndTime + TimeSpan.FromSeconds(seconds);
@@ -595,13 +613,13 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         if (newEnd > videoDuration) newEnd = videoDuration;
 
         segment.EndTime = newEnd;
-        await SaveSegmentAsync(segment);
+        _ = SaveSegmentAsync(segment);
         PreviewTime(newEnd);
     }
 
     /// <summary>Adjust the start time by the given number of frames (positive or negative).</summary>
     [RelayCommand]
-    private async Task AdjustStartFrameAsync((VideoSegment segment, int frames) args)
+    private void AdjustStartFrame((VideoSegment segment, int frames) args)
     {
         var (segment, frames) = args;
         if (VideoFps <= 0f) return;
@@ -613,13 +631,13 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         if (newStart > maxStart) newStart = maxStart;
 
         segment.StartTime = newStart;
-        await SaveSegmentAsync(segment);
+        _ = SaveSegmentAsync(segment);
         PreviewTime(newStart);
     }
 
     /// <summary>Adjust the end time by the given number of frames (positive or negative).</summary>
     [RelayCommand]
-    private async Task AdjustEndFrameAsync((VideoSegment segment, int frames) args)
+    private void AdjustEndFrame((VideoSegment segment, int frames) args)
     {
         var (segment, frames) = args;
         if (VideoFps <= 0f) return;
@@ -631,7 +649,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         if (newEnd > videoDuration) newEnd = videoDuration;
 
         segment.EndTime = newEnd;
-        await SaveSegmentAsync(segment);
+        _ = SaveSegmentAsync(segment);
         PreviewTime(newEnd);
     }
 

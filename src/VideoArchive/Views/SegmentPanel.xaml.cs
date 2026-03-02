@@ -187,6 +187,18 @@ public sealed partial class SegmentPanel : UserControl
 
     private void SegmentCard_Tapped(object sender, TappedRoutedEventArgs e)
     {
+        // Buttons inside the card handle their own logic and must not also
+        // trigger segment activation (which would start playback).
+        if (e.OriginalSource is DependencyObject src)
+        {
+            var node = (DependencyObject?)src;
+            while (node is not null && !ReferenceEquals(node, sender))
+            {
+                if (node is ButtonBase) return;
+                node = VisualTreeHelper.GetParent(node);
+            }
+        }
+
         if (sender is Border border && border.DataContext is VideoSegment segment)
             ViewModel.ActivateSegment(segment);
     }
