@@ -19,7 +19,7 @@
         <!-- "No video" hint -->
         <TextBlock x:Name="NoVideoHint"
                    Grid.Row="1"
-                   Text="Play or preview a video to manage its tags."
+                   Text="Select a video to manage its tags."
                    Style="{ThemeResource CaptionTextBlockStyle}"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    TextWrapping="Wrap" />

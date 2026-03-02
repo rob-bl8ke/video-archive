@@ -8,29 +8,29 @@ using VideoArchive.ViewModels;
 namespace VideoArchive.Views;
 
 /// <summary>
-/// Inline tag-toggling panel for the currently loaded video.
-/// Replaces the need to open a modal dialog while using the player.
+/// Inline tag-toggling panel for the currently selected/playing video.
+/// Works in both Search view (SelectedVideo) and Player view (SelectedVideo == CurrentVideo).
 /// </summary>
 public sealed partial class TagPanel : UserControl
 {
-    private VideoPlayerViewModel PlayerVm { get; }
+    private MainViewModel MainVm { get; }
     private Video? _boundVideo;
 
     public TagPanel()
     {
-        PlayerVm = App.Services.GetRequiredService<VideoPlayerViewModel>();
+        MainVm = App.Services.GetRequiredService<MainViewModel>();
         this.InitializeComponent();
 
-        PlayerVm.PropertyChanged += (_, e) =>
+        MainVm.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(VideoPlayerViewModel.CurrentVideo))
+            if (e.PropertyName == nameof(MainViewModel.SelectedVideo))
                 RefreshTags();
         };
     }
 
     private async void RefreshTags()
     {
-        var video = PlayerVm.CurrentVideo;
+        var video = MainVm.SelectedVideo;
         _boundVideo = video;
 
         TagList.Children.Clear();
