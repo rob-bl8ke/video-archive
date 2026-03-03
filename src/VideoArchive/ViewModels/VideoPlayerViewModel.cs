@@ -65,7 +65,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
                 {
                     await Task.Delay(200);
                     if (!_disposed)
-                        _mediaPlayer.Pause();
+                        _mediaPlayer.SetPause(true);
                 });
                 return;
             }
@@ -80,8 +80,20 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         });
         _mediaPlayer.EndReached += (_, _) => _dispatcher.TryEnqueue(() =>
         {
-            State = PlaybackState.Stopped;
-            Position = 0;
+            if (IsLoopEnabled && ActiveSegment is null)
+            {
+                // Full-video loop — restart from the beginning
+                Task.Run(() =>
+                {
+                    _mediaPlayer.Stop();
+                    _mediaPlayer.Play();
+                });
+            }
+            else
+            {
+                State = PlaybackState.Stopped;
+                Position = 0;
+            }
         });
 
         // Re-evaluate CanPlay when the gallery selection changes,
@@ -180,9 +192,12 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private VideoSegment? _selectedSegment;
 
-    /// <summary>When true, segment playback loops back to StartTime on reaching EndTime.</summary>
+    /// <summary>
+    /// When true, playback loops. If a segment is active, loops within its boundaries;
+    /// otherwise loops the entire video. This is a global toggle, not per-segment state.
+    /// </summary>
     [ObservableProperty]
-    private bool _isSegmentLooping;
+    private bool _isLoopEnabled;
 
     /// <summary>Frames per second of the currently loaded video; 0 when unknown.</summary>
     [ObservableProperty]
@@ -213,14 +228,15 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         // Segment boundary enforcement
         if (ActiveSegment is not null && _mediaPlayer.Time >= (long)ActiveSegment.EndTime.TotalMilliseconds)
         {
-            if (IsSegmentLooping)
+            if (IsLoopEnabled)
             {
                 SeekToTime(ActiveSegment.StartTime);
             }
             else
             {
-                Task.Run(() => _mediaPlayer.Pause());
-                StopSegmentPlayback();
+                // Segment ended — pause and clear active state, keep SelectedSegment for editing
+                Task.Run(() => _mediaPlayer.SetPause(true));
+                ActiveSegment = null;
             }
         }
     }
@@ -275,13 +291,11 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
         if (State == PlaybackState.Playing)
         {
-            StopSegmentPlayback();
-            // Run pause + seek sequentially on the thread pool so they cannot
-            // interleave. Fire-and-forget is safe here; both are synchronous
-            // LibVLC calls on the same thread.
+            // Pause without clearing segment context — adjustments pause playback
+            // but preserve the active segment so boundaries are still enforced on resume.
             Task.Run(() =>
             {
-                _mediaPlayer.Pause();
+                _mediaPlayer.SetPause(true);
                 _mediaPlayer.Time = ms;
             });
         }
@@ -291,61 +305,45 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Exit segment playback mode without affecting the media player state.</summary>
+    /// <summary>Exit active segment playback mode without affecting the media player state.</summary>
     private void StopSegmentPlayback()
     {
-        ActiveSegment = null;
-        IsSegmentLooping = false;
+        ActiveSegment   = null;
+        SelectedSegment = null;
+        // IsLoopEnabled is a global toggle — intentionally not cleared here
     }
 
     /// <summary>
-    /// Selects a segment, seeks to its StartTime, and begins playback.
+    /// Selects a segment and pauses at its StartTime.
+    /// Playback is started via the main transport Play/Pause button.
     /// Called when a segment card is tapped or its name field receives focus.
     /// </summary>
     public void ActivateSegment(VideoSegment segment)
     {
         SelectedSegment = segment;
         ActiveSegment   = segment;
-        SeekToTime(segment.StartTime);
-        if (State != PlaybackState.Playing)
-            Task.Run(() => _mediaPlayer.Play());
-    }
 
-    [RelayCommand]
-    private void SegmentPlayPause(VideoSegment? segment)
-    {
-        if (_disposed || segment is null) return;
+        var ms = (long)segment.StartTime.TotalMilliseconds;
 
-        if (ActiveSegment?.Id == segment.Id)
+        // Update the progress bar and time display immediately
+        var total = TimeSpan.FromMilliseconds(_mediaPlayer.Length);
+        if (total > TimeSpan.Zero)
+            Position = segment.StartTime.TotalMilliseconds / total.TotalMilliseconds;
+        CurrentTimeText = FormatTime(segment.StartTime);
+
+        // Pause at the segment's start position
+        Task.Run(() =>
         {
-            // Same segment — toggle play/pause
-            if (State == PlaybackState.Playing)
-                Task.Run(() => _mediaPlayer.Pause());
-            else
-                Task.Run(() => _mediaPlayer.Play());
-            return;
-        }
-
-        // Different segment (or no active segment) — start playing this one
-        ActiveSegment = segment;
-        SeekToTime(segment.StartTime);
-
-        if (State != PlaybackState.Playing)
-            Task.Run(() => _mediaPlayer.Play());
+            _mediaPlayer.SetPause(true);
+            _mediaPlayer.Time = ms;
+        });
     }
 
+    /// <summary>Global loop toggle — applies to segment playback or full video.</summary>
     [RelayCommand]
-    private void SegmentStop()
+    private void ToggleLoop()
     {
-        if (ActiveSegment is null) return;
-        Task.Run(() => _mediaPlayer.Pause());
-        StopSegmentPlayback();
-    }
-
-    [RelayCommand]
-    private void SegmentToggleLoop()
-    {
-        IsSegmentLooping = !IsSegmentLooping;
+        IsLoopEnabled = !IsLoopEnabled;
     }
 
     [RelayCommand]
@@ -353,27 +351,52 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
 
-        StopSegmentPlayback();
-        SelectedSegment = null;   // Main controls override any editing selection
-
         switch (State)
         {
             case PlaybackState.Playing:
-                // Currently playing → pause
-                Task.Run(() => _mediaPlayer.Pause());
+                Task.Run(() => _mediaPlayer.SetPause(true));
                 break;
 
             case PlaybackState.Paused:
-                // Paused with media loaded → resume
-                Task.Run(() => _mediaPlayer.Play());
+            {
+                // If paused at or past a selected segment's end (e.g. segment reached its
+                // boundary without looping), restart from the segment's start.
+                if (SelectedSegment is not null
+                    && _mediaPlayer.Time >= (long)SelectedSegment.EndTime.TotalMilliseconds)
+                {
+                    ActiveSegment = SelectedSegment;
+                    var startMs   = (long)SelectedSegment.StartTime.TotalMilliseconds;
+                    Task.Run(() =>
+                    {
+                        _mediaPlayer.Time = startMs;
+                        _mediaPlayer.Play();
+                    });
+                }
+                else
+                {
+                    Task.Run(() => _mediaPlayer.Play());
+                }
                 break;
+            }
 
             case PlaybackState.Stopped:
+            {
+                // Restart from the beginning of the active segment, or the video start
+                var startMs = ActiveSegment is not null
+                    ? (long)ActiveSegment.StartTime.TotalMilliseconds
+                    : 0L;
+                Task.Run(() =>
+                {
+                    _mediaPlayer.Time = startMs;
+                    _mediaPlayer.Play();
+                });
+                break;
+            }
+
             case PlaybackState.Idle:
-                // No active playback → play the currently selected video
+            {
                 if (_currentMedia is not null)
                 {
-                    // Stopped but media still assigned (shouldn't normally happen after Stop clears it)
                     Task.Run(() => _mediaPlayer.Play());
                 }
                 else
@@ -383,6 +406,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
                         Play(mainVm.SelectedVideo);
                 }
                 break;
+            }
         }
     }
 
@@ -540,6 +564,8 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     {
         if (segment is null) return;
 
+        var idx = Segments.IndexOf(segment);
+
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<VideoArchiveContext>();
         var entity = await context.VideoSegments.FindAsync(segment.Id);
@@ -550,6 +576,26 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         }
 
         Segments.Remove(segment);
+
+        // Clear any state that referenced the deleted segment
+        if (ActiveSegment?.Id   == segment.Id) ActiveSegment   = null;
+        if (SelectedSegment?.Id == segment.Id) SelectedSegment = null;
+
+        if (Segments.Count > 0)
+        {
+            // Auto-select the next segment (or the last one if we deleted the final entry)
+            var next = idx < Segments.Count ? Segments[idx] : Segments[Segments.Count - 1];
+            ActivateSegment(next);
+        }
+        else
+        {
+            // No segments remain — revert to the start of the video, paused
+            Task.Run(() =>
+            {
+                _mediaPlayer.SetPause(true);
+                _mediaPlayer.Time = 0;
+            });
+        }
     }
 
     /// <summary>Rename a segment. Empty names are rejected.</summary>

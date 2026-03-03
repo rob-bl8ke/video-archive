@@ -79,6 +79,8 @@ public sealed partial class PlayerPanel : UserControl
                 PlayPauseIcon.Glyph = ViewModel.IsPlaying ? "\uE769" : "\uE768"; // Pause : Play
             if (e.PropertyName == nameof(VideoPlayerViewModel.CanPlay))
                 PlayPauseButton.IsEnabled = ViewModel.CanPlay;
+            if (e.PropertyName == nameof(VideoPlayerViewModel.IsLoopEnabled))
+                LoopButton.IsChecked = ViewModel.IsLoopEnabled;
         };
 
         this.Loaded += PlayerPanel_Loaded;
@@ -368,6 +370,11 @@ public sealed partial class PlayerPanel : UserControl
     private void Stop_Click(object sender, RoutedEventArgs e)
     {
         ViewModel.StopCommand.Execute(null);
+    }
+
+    private void LoopToggle_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ToggleLoopCommand.Execute(null);
     }
 
     private void SeekSlider_PointerPressed(object sender, PointerRoutedEventArgs e)

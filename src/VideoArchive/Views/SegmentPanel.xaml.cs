@@ -36,7 +36,7 @@ public sealed partial class SegmentPanel : UserControl
 
             if (e.PropertyName is nameof(VideoPlayerViewModel.ActiveSegment)
                                 or nameof(VideoPlayerViewModel.SelectedSegment)
-                                or nameof(VideoPlayerViewModel.IsSegmentLooping)
+                                or nameof(VideoPlayerViewModel.IsLoopEnabled)
                                 or nameof(VideoPlayerViewModel.State)
                                 or nameof(VideoPlayerViewModel.VideoFps))
             {
@@ -62,10 +62,8 @@ public sealed partial class SegmentPanel : UserControl
         var activeId     = ViewModel.ActiveSegment?.Id;
         var selectedId   = ViewModel.SelectedSegment?.Id;
         var isPlaying    = ViewModel.State == PlaybackState.Playing;
-        var isLooping    = ViewModel.IsSegmentLooping;
         var fps          = ViewModel.VideoFps;
         var defaultBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
-        var accentStyle  = (Style)Application.Current.Resources["AccentButtonStyle"];
 
         // Colour tokens:
         //   selected (editing focus) → SystemAccentColor border, 2px
@@ -93,15 +91,10 @@ public sealed partial class SegmentPanel : UserControl
                     card.BorderBrush     = playingBrush;
                     card.BorderThickness = new Thickness(2);
                 }
-                else if (isSelected)
+                else if (isSelected || isActive)
                 {
-                    card.BorderBrush     = selectedBrush;
+                    card.BorderBrush     = isSelected ? selectedBrush : playingBrush;
                     card.BorderThickness = new Thickness(2);
-                }
-                else if (isActive) // active but paused mid-segment
-                {
-                    card.BorderBrush     = playingBrush;
-                    card.BorderThickness = new Thickness(1);
                 }
                 else
                 {
@@ -109,20 +102,6 @@ public sealed partial class SegmentPanel : UserControl
                     card.BorderThickness = new Thickness(1);
                 }
             }
-
-            // Play/Pause button — accent style + pause glyph when this segment is playing
-            var playBtn = FindDescendants<Button>(container)
-                          .FirstOrDefault(b => AutomationProperties.GetName(b) == "segment-play");
-            if (playBtn is not null)
-            {
-                playBtn.Style = isActiveAndPlaying ? accentStyle : null;
-                if (playBtn.Content is FontIcon fi)
-                    fi.Glyph = isActiveAndPlaying ? "\uE769" : "\uE768"; // Pause : Play
-            }
-
-            // Loop ToggleButton checked state
-            if (FindFirstDescendant<ToggleButton>(container) is ToggleButton loopBtn)
-                loopBtn.IsChecked = isLooping;
 
             // Timecode TextBlocks — updated imperatively so FPS changes are reflected immediately
             var startTc = FindDescendants<TextBlock>(container)
@@ -183,7 +162,6 @@ public sealed partial class SegmentPanel : UserControl
         if (sender is Button btn && btn.Tag is VideoSegment segment)
             ViewModel.DeleteSegmentCommand.Execute(segment);
     }
-    // ── Card activation (non-button areas: TextBlocks, grid space) ──────
 
     private void SegmentCard_Tapped(object sender, TappedRoutedEventArgs e)
     {
@@ -395,28 +373,7 @@ public sealed partial class SegmentPanel : UserControl
     }
 
     // ── Segment transport ────────────────────────────────────────────
-
-    private void SegmentPlayPause_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is VideoSegment segment)
-        {
-            ViewModel.SelectedSegment = segment;
-            ViewModel.SegmentPlayPauseCommand.Execute(segment);
-        }
-    }
-
-    // Stop: select the segment but do NOT seek/play
-    private void SegmentStop_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is VideoSegment segment)
-            ViewModel.SelectedSegment = segment;
-        ViewModel.SegmentStopCommand.Execute(null);
-    }
-
-    private void SegmentToggleLoop_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is ToggleButton tb && tb.Tag is VideoSegment segment)
-            ViewModel.SelectedSegment = segment;
-        ViewModel.SegmentToggleLoopCommand.Execute(null);
-    }
+    // Transport controls (Play/Pause, Stop, Loop) moved to PlayerPanel.
+    // Segment selection via card tap or name focus pauses at segment start;
+    // playback is driven by the main transport controls.
 }

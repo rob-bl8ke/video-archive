@@ -115,6 +115,13 @@
                 <FontIcon x:Name="PlayPauseIcon" Glyph="&#xE768;" FontSize="20" />
             </Button>
 
+            <ToggleButton x:Name="LoopButton"
+                          Click="LoopToggle_Click"
+                          ToolTipService.ToolTip="Loop"
+                          Padding="8">
+                <FontIcon Glyph="&#xE8EE;" FontSize="16" />
+            </ToggleButton>
+
             <AppBarSeparator />
 
             <!-- Volume -->
