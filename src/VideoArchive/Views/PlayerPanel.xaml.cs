@@ -393,7 +393,10 @@ public sealed partial class PlayerPanel : UserControl
     private void SeekSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
         if (_sliderDragging)
+        {
             ViewModel.Position = e.NewValue;
+            ViewModel.UpdateSeekTimeDisplay(e.NewValue);
+        }
     }
 
     private void VolumeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)

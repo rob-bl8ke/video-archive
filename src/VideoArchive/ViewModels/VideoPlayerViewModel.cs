@@ -205,6 +205,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     private float _videoFps;
 
     private bool _isSeeking;
+    private long _cachedLengthMs; // last known non-zero media duration; used by PreviewTime and EndSeek
 
     /// <summary>
     /// Called by the DispatcherQueue timer to update position/time display.
@@ -216,8 +217,11 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
         Position = _mediaPlayer.Position;
 
+        var lengthMs = _mediaPlayer.Length;
+        if (lengthMs > 0) _cachedLengthMs = lengthMs;
+
         var current = TimeSpan.FromMilliseconds(_mediaPlayer.Time);
-        var total = TimeSpan.FromMilliseconds(_mediaPlayer.Length);
+        var total = TimeSpan.FromMilliseconds(lengthMs);
 
         CurrentTimeText = FormatTime(current);
         TotalTimeText = FormatTime(total);
@@ -255,6 +259,22 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         var pos = (float)Position;
         Task.Run(() => _mediaPlayer.Position = pos);
         _isSeeking = false;
+
+        // UpdateTimeline() only runs while playing, so update the time text
+        // explicitly here so it reflects the committed seek position while paused.
+        UpdateSeekTimeDisplay(pos);
+    }
+
+    /// <summary>
+    /// Updates <see cref="CurrentTimeText"/> from a normalised position (0–1).
+    /// Call during slider drag and after seek commit so the display stays live
+    /// even when playback is paused.
+    /// </summary>
+    public void UpdateSeekTimeDisplay(double normalizedPosition)
+    {
+        var totalMs = _cachedLengthMs > 0 ? _cachedLengthMs : _mediaPlayer.Length;
+        if (totalMs <= 0) return;
+        CurrentTimeText = FormatTime(TimeSpan.FromMilliseconds(normalizedPosition * totalMs));
     }
 
     partial void OnVolumeChanged(int value)
@@ -280,15 +300,17 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         if (_currentMedia is null) return;
         var ms = (long)time.TotalMilliseconds;
 
-        // Update the progress bar and time displays immediately from the
-        // known seek target — the timer only runs while playing, so without
-        // this the slider stays frozen after an adjustment.
-        var total = TimeSpan.FromMilliseconds(_mediaPlayer.Length);
+        // Use the cached length so Position is always updated even if the
+        // codec hasn't yet reported a duration on the current call.
+        var totalMs = _mediaPlayer.Length > 0 ? _mediaPlayer.Length : _cachedLengthMs;
+        var total   = TimeSpan.FromMilliseconds(totalMs);
         if (total > TimeSpan.Zero)
             Position = time.TotalMilliseconds / total.TotalMilliseconds;
         CurrentTimeText = FormatTime(time);
         if (total > TimeSpan.Zero)
             TotalTimeText = FormatTime(total);
+        if (totalMs > 0 && _cachedLengthMs == 0)
+            _cachedLengthMs = totalMs;
 
         if (State == PlaybackState.Playing)
         {
@@ -433,6 +455,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
     {
         _isPreviewing = false;
         VideoFps = 0f;
+        _cachedLengthMs = 0;
         CurrentVideo = video;
         NowPlayingTitle = video.Title ?? Path.GetFileNameWithoutExtension(video.FilePath);
 
@@ -458,6 +481,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         // Cancel any in-flight preview before starting a new one
         _isPreviewing = false;
         VideoFps = 0f;
+        _cachedLengthMs = 0;
 
         CurrentVideo = video;
         NowPlayingTitle = video.Title ?? Path.GetFileNameWithoutExtension(video.FilePath);
