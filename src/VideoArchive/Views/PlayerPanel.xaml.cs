@@ -367,11 +367,6 @@ public sealed partial class PlayerPanel : UserControl
         PositionVideoWindow();
     }
 
-    private void Stop_Click(object sender, RoutedEventArgs e)
-    {
-        ViewModel.StopCommand.Execute(null);
-    }
-
     private void LoopToggle_Click(object sender, RoutedEventArgs e)
     {
         ViewModel.ToggleLoopCommand.Execute(null);

@@ -69,6 +69,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
                 });
                 return;
             }
+
             _dispatcher.TryEnqueue(() => State = PlaybackState.Playing);
         };
         _mediaPlayer.Paused += (_, _) => _dispatcher.TryEnqueue(() => State = PlaybackState.Paused);

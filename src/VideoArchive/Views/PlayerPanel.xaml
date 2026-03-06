@@ -101,12 +101,6 @@
                     Spacing="8"
                     Padding="0,4,0,8">
 
-            <Button Click="Stop_Click"
-                    ToolTipService.ToolTip="Stop"
-                    Padding="8">
-                <FontIcon Glyph="&#xE71A;" FontSize="16" />
-            </Button>
-
             <Button x:Name="PlayPauseButton"
                     Click="PlayPause_Click"
                     ToolTipService.ToolTip="Play / Pause"
