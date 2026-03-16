@@ -68,12 +68,11 @@
                                      KeyDown="SegmentName_KeyDown"
                                      Tag="{Binding}" />
 
-                            <!-- Row 1: Start time with adjustments -->
+                            <!-- Row 1: Start time -->
                             <Grid Grid.Row="1" ColumnSpacing="2" Background="Transparent">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="36" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Column="0"
@@ -96,96 +95,13 @@
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
 
-                                <!-- 2-row × 5-col uniform button grid -->
-                                <Grid Grid.Column="2" RowSpacing="1" ColumnSpacing="1" Background="Transparent">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="28" />
-                                        <ColumnDefinition Width="28" />
-                                        <ColumnDefinition Width="28" />
-                                        <ColumnDefinition Width="28" />
-                                        <ColumnDefinition Width="28" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Coarse row: −5 | −1 | ⊙ | +1 | +5 -->
-                                    <Button Grid.Row="0" Grid.Column="0"
-                                            Click="AdjustStartMinus5_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="Start −5s"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="−5" FontSize="10" />
-                                    </Button>
-                                    <Button Grid.Row="0" Grid.Column="1"
-                                            Click="AdjustStartMinus1_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="Start −1s"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="−1" FontSize="10" />
-                                    </Button>
-                                    <Button Grid.Row="0" Grid.Column="2"
-                                            Click="SetStartFromPlayhead_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="Set start to current time"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <FontIcon Glyph="&#xE892;" FontSize="10" />
-                                    </Button>
-                                    <Button Grid.Row="0" Grid.Column="3"
-                                            Click="AdjustStartPlus1_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="Start +1s"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="+1" FontSize="10" />
-                                    </Button>
-                                    <Button Grid.Row="0" Grid.Column="4"
-                                            Click="AdjustStartPlus5_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="Start +5s"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="+5" FontSize="10" />
-                                    </Button>
-
-                                    <!-- Fine row: −1f | −.1 | (empty) | +.1 | +1f -->
-                                    <Button Grid.Row="1" Grid.Column="0"
-                                            Click="AdjustStartMinus1Frame_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="Start −1 frame"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="−1f" FontSize="10" />
-                                    </Button>
-                                    <Button Grid.Row="1" Grid.Column="1"
-                                            Click="AdjustStartMinusTenth_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="Start −0.1s"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="−.1" FontSize="10" />
-                                    </Button>
-                                    <!-- col 2 intentionally empty (aligns with playhead button above) -->
-                                    <Button Grid.Row="1" Grid.Column="3"
-                                            Click="AdjustStartPlusTenth_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="Start +0.1s"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="+.1" FontSize="10" />
-                                    </Button>
-                                    <Button Grid.Row="1" Grid.Column="4"
-                                            Click="AdjustStartPlus1Frame_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="Start +1 frame"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="+1f" FontSize="10" />
-                                    </Button>
-                                </Grid>
                             </Grid>
 
-                            <!-- Row 2: End time with adjustments -->
+                            <!-- Row 2: End time -->
                             <Grid Grid.Row="2" ColumnSpacing="2" Background="Transparent">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="36" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Column="0"
@@ -207,91 +123,7 @@
                                                FontFamily="Consolas"
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
-
-                                <!-- 2-row × 5-col uniform button grid -->
-                                <Grid Grid.Column="2" RowSpacing="1" ColumnSpacing="1" Background="Transparent">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="28" />
-                                        <ColumnDefinition Width="28" />
-                                        <ColumnDefinition Width="28" />
-                                        <ColumnDefinition Width="28" />
-                                        <ColumnDefinition Width="28" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Coarse row: −5 | −1 | ⊙ | +1 | +5 -->
-                                    <Button Grid.Row="0" Grid.Column="0"
-                                            Click="AdjustEndMinus5_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="End −5s"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="−5" FontSize="10" />
-                                    </Button>
-                                    <Button Grid.Row="0" Grid.Column="1"
-                                            Click="AdjustEndMinus1_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="End −1s"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="−1" FontSize="10" />
-                                    </Button>
-                                    <Button Grid.Row="0" Grid.Column="2"
-                                            Click="SetEndFromPlayhead_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="Set end to current time"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <FontIcon Glyph="&#xE893;" FontSize="10" />
-                                    </Button>
-                                    <Button Grid.Row="0" Grid.Column="3"
-                                            Click="AdjustEndPlus1_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="End +1s"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="+1" FontSize="10" />
-                                    </Button>
-                                    <Button Grid.Row="0" Grid.Column="4"
-                                            Click="AdjustEndPlus5_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="End +5s"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="+5" FontSize="10" />
-                                    </Button>
-
-                                    <!-- Fine row: −1f | −.1 | (empty) | +.1 | +1f -->
-                                    <Button Grid.Row="1" Grid.Column="0"
-                                            Click="AdjustEndMinus1Frame_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="End −1 frame"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="−1f" FontSize="10" />
-                                    </Button>
-                                    <Button Grid.Row="1" Grid.Column="1"
-                                            Click="AdjustEndMinusTenth_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="End −0.1s"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="−.1" FontSize="10" />
-                                    </Button>
-                                    <!-- col 2 intentionally empty (aligns with playhead button above) -->
-                                    <Button Grid.Row="1" Grid.Column="3"
-                                            Click="AdjustEndPlusTenth_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="End +0.1s"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="+.1" FontSize="10" />
-                                    </Button>
-                                    <Button Grid.Row="1" Grid.Column="4"
-                                            Click="AdjustEndPlus1Frame_Click" Tag="{Binding}"
-                                            ToolTipService.ToolTip="End +1 frame"
-                                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-                                            HorizontalContentAlignment="Center">
-                                        <TextBlock Text="+1f" FontSize="10" />
-                                    </Button>
-                                </Grid>
                             </Grid>
-
                             <!-- Row 3: Delete -->
                             <Grid Grid.Row="3" Margin="0,2,0,0" Background="Transparent">
                                 <Button Click="DeleteSegment_Click"

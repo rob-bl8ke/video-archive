@@ -81,6 +81,9 @@ public sealed partial class PlayerPanel : UserControl
                 PlayPauseButton.IsEnabled = ViewModel.CanPlay;
             if (e.PropertyName == nameof(VideoPlayerViewModel.IsLoopEnabled))
                 LoopButton.IsChecked = ViewModel.IsLoopEnabled;
+            if (e.PropertyName is nameof(VideoPlayerViewModel.SelectedSegment)
+                                or nameof(VideoPlayerViewModel.VideoFps))
+                RefreshAdjustPanel();
         };
 
         this.Loaded += PlayerPanel_Loaded;
@@ -404,7 +407,146 @@ public sealed partial class PlayerPanel : UserControl
         ViewModel.Volume = (int)e.NewValue;
     }
 
-    // Segment handlers have moved to SegmentPanel.xaml.cs
+    // ── Segment adjustment panel ─────────────────────────────────────
+
+    private static string FormatPreciseDuration(TimeSpan ts)
+    {
+        int h = (int)ts.TotalHours;
+        int m = ts.Minutes;
+        int s = ts.Seconds;
+        int ms = ts.Milliseconds;
+        return h > 0 ? $"{h}:{m:D2}:{s:D2}.{ms:D3}" : $"{m}:{s:D2}.{ms:D3}";
+    }
+
+    private static string FormatTimecode(TimeSpan ts, float fps)
+    {
+        if (fps <= 0f) return "--:--:--:--";
+        int h = (int)ts.TotalHours;
+        int m = ts.Minutes;
+        int s = ts.Seconds;
+        int f = (int)Math.Floor(ts.Milliseconds / 1000.0 * fps);
+        return $"{h:D2}:{m:D2}:{s:D2}:{f:D2}";
+    }
+
+    private void RefreshAdjustPanel()
+    {
+        var seg = ViewModel.SelectedSegment;
+        if (seg is null)
+        {
+            SegmentAdjustPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var fps = ViewModel.VideoFps;
+        SelectedSegmentLabel.Text = $"Adjusting: {seg.Name}";
+        AdjStartTime.Text = FormatPreciseDuration(seg.StartTime);
+        AdjStartTimecode.Text = FormatTimecode(seg.StartTime, fps);
+        AdjEndTime.Text = FormatPreciseDuration(seg.EndTime);
+        AdjEndTimecode.Text = FormatTimecode(seg.EndTime, fps);
+        SegmentAdjustPanel.Visibility = Visibility.Visible;
+    }
+
+    // ── Set from playhead ────────────────────────────────────────────
+
+    private void SetStartFromPlayhead_Click(object sender, RoutedEventArgs e)
+    {
+        var seg = ViewModel.SelectedSegment;
+        if (seg is null) return;
+        ViewModel.SetStartTime(seg);
+        RefreshAdjustPanel();
+    }
+
+    private void SetEndFromPlayhead_Click(object sender, RoutedEventArgs e)
+    {
+        var seg = ViewModel.SelectedSegment;
+        if (seg is null) return;
+        ViewModel.SetEndTime(seg);
+        RefreshAdjustPanel();
+    }
+
+    // ── Start time adjustments ───────────────────────────────────────
+
+    private void AdjustStartMinus5_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustStartTimeCommand.Execute((seg, -5.0)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustStartMinus1_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustStartTimeCommand.Execute((seg, -1.0)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustStartMinusTenth_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustStartTimeCommand.Execute((seg, -0.1)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustStartMinus1Frame_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustStartFrameCommand.Execute((seg, -1)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustStartPlus1Frame_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustStartFrameCommand.Execute((seg, 1)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustStartPlusTenth_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustStartTimeCommand.Execute((seg, 0.1)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustStartPlus1_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustStartTimeCommand.Execute((seg, 1.0)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustStartPlus5_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustStartTimeCommand.Execute((seg, 5.0)); RefreshAdjustPanel(); }
+    }
+
+    // ── End time adjustments ─────────────────────────────────────────
+
+    private void AdjustEndMinus5_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustEndTimeCommand.Execute((seg, -5.0)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustEndMinus1_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustEndTimeCommand.Execute((seg, -1.0)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustEndMinusTenth_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustEndTimeCommand.Execute((seg, -0.1)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustEndMinus1Frame_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustEndFrameCommand.Execute((seg, -1)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustEndPlus1Frame_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustEndFrameCommand.Execute((seg, 1)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustEndPlusTenth_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustEndTimeCommand.Execute((seg, 0.1)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustEndPlus1_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustEndTimeCommand.Execute((seg, 1.0)); RefreshAdjustPanel(); }
+    }
+
+    private void AdjustEndPlus5_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustEndTimeCommand.Execute((seg, 5.0)); RefreshAdjustPanel(); }
+    }
 
     /// <summary>
     /// Called from MainWindow to start playback of a video.
