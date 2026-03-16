@@ -2,6 +2,8 @@ using CommunityToolkit.WinUI.UI.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using VideoArchive.Helpers;
 using VideoArchive.Models;
 using VideoArchive.Services;
@@ -33,10 +35,26 @@ public sealed partial class DetailsView : UserControl
 
     private void VideosGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (VideosGrid.SelectedItem is Video video)
+        ViewModel.SelectedVideos = VideosGrid.SelectedItems.OfType<Video>().ToList();
+        ViewModel.SelectedVideo = VideosGrid.SelectedItem as Video;
+    }
+
+    private void VideosGrid_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        // Walk up the visual tree to find the DataGridRow under the pointer
+        var element = e.OriginalSource as DependencyObject;
+        while (element is not null)
         {
-            ViewModel.SelectedVideo = video;
+            if (element is DataGridRow row)
+            {
+                if (row.DataContext is Video video && !VideosGrid.SelectedItems.Contains(video))
+                    VideosGrid.SelectedItem = video;
+                break;
+            }
+            element = VisualTreeHelper.GetParent(element);
         }
+
+        DetailPlayMenuItem.IsEnabled = VideosGrid.SelectedItems.Count == 1;
     }
 
     /// <summary>
@@ -107,21 +125,20 @@ public sealed partial class DetailsView : UserControl
             ViewModel.NavigateToPlayerCommand.Execute(ViewModel.SelectedVideo);
     }
 
-    private async void AddTagsMenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        if (ViewModel.SelectedVideo is null) return;
-        await ApplyTagsDialog.ShowAsync(this.XamlRoot, ViewModel.SelectedVideo);
-    }
-
     private async void RemoveMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (ViewModel.SelectedVideo is null) return;
+        var toRemove = ViewModel.SelectedVideos.ToList();
+        if (toRemove.Count == 0) return;
+
+        var content = toRemove.Count == 1
+            ? $"Remove \"{toRemove[0].Title}\" from the library?\nThe file will not be deleted from disk."
+            : $"Remove {toRemove.Count} videos from the library?\nFiles will not be deleted from disk.";
 
         var dialog = new ContentDialog
         {
             XamlRoot = this.XamlRoot,
             Title = "Remove from Library",
-            Content = $"Remove \"{ViewModel.SelectedVideo.Title}\" from the library?\nThe file will not be deleted from disk.",
+            Content = content,
             PrimaryButtonText = "Remove",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Close,
@@ -131,8 +148,12 @@ public sealed partial class DetailsView : UserControl
         {
             using var scope = App.Services.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IVideoRepository>();
-            await repo.DeleteAsync(ViewModel.SelectedVideo.Id);
-            ViewModel.Videos.Remove(ViewModel.SelectedVideo);
+            foreach (var video in toRemove)
+            {
+                await repo.DeleteAsync(video.Id);
+                ViewModel.Videos.Remove(video);
+            }
+            ViewModel.SelectedVideos = [];
             ViewModel.SelectedVideo = null;
         }
     }

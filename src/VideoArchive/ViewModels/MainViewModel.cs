@@ -29,6 +29,14 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private Video? _selectedVideo;
 
+    /// <summary>All currently-selected videos — updated by the active view's selection handler.</summary>
+    private List<Video> _selectedVideos = [];
+    public List<Video> SelectedVideos
+    {
+        get => _selectedVideos;
+        set { _selectedVideos = value; OnPropertyChanged(); }
+    }
+
     /// <summary>True when a video is selected in the gallery/details view.</summary>
     public bool HasSelection => SelectedVideo is not null;
 

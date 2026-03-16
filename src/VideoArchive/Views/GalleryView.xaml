@@ -39,14 +39,21 @@
         </StackPanel>
 
         <GridView x:Name="VideoGrid"
-                  SelectionMode="Single"
+                  SelectionMode="Extended"
                   SelectionChanged="VideoGrid_SelectionChanged"
                   DoubleTapped="VideoGrid_DoubleTapped"
+                  RightTapped="VideoGrid_RightTapped"
                   Padding="0"
                   Margin="0,0,0,12">
             <GridView.ContextFlyout>
                 <MenuFlyout>
-                    <MenuFlyoutItem Text="Play" Icon="Play" Click="PlayMenuItem_Click" />
+                    <MenuFlyoutItem x:Name="GalleryPlayMenuItem" Text="Play" Icon="Play" Click="PlayMenuItem_Click" />
+                    <MenuFlyoutSeparator />
+                    <MenuFlyoutItem x:Name="GalleryRemoveMenuItem" Text="Remove from Library" Click="GalleryRemoveMenuItem_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE74D;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
                 </MenuFlyout>
             </GridView.ContextFlyout>
             <GridView.ItemsPanel>

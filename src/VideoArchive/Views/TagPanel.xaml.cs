@@ -8,13 +8,15 @@ using VideoArchive.ViewModels;
 namespace VideoArchive.Views;
 
 /// <summary>
-/// Inline tag-toggling panel for the currently selected/playing video.
-/// Works in both Search view (SelectedVideo) and Player view (SelectedVideo == CurrentVideo).
+/// Inline tag-toggling panel for the currently selected video(s).
+/// Supports single and multi-selection with live apply.
+/// Partial tags (present on only some selected videos) are shown as indeterminate;
+/// clicking them normalises the selection to all-having-it.
 /// </summary>
 public sealed partial class TagPanel : UserControl
 {
     private MainViewModel MainVm { get; }
-    private Video? _boundVideo;
+    private List<Video>? _boundVideos;
 
     public TagPanel()
     {
@@ -23,31 +25,39 @@ public sealed partial class TagPanel : UserControl
 
         MainVm.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(MainViewModel.SelectedVideo))
+            if (e.PropertyName == nameof(MainViewModel.SelectedVideos))
                 RefreshTags();
         };
     }
 
     private async void RefreshTags()
     {
-        var video = MainVm.SelectedVideo;
-        _boundVideo = video;
+        var videos = MainVm.SelectedVideos;
+        _boundVideos = videos;
 
         TagList.Children.Clear();
 
-        if (video is null)
+        if (videos.Count == 0)
         {
             NoVideoHint.Visibility = Visibility.Visible;
+            SelectionSubtitle.Visibility = Visibility.Collapsed;
             TagScroller.Visibility = Visibility.Collapsed;
             return;
         }
 
         NoVideoHint.Visibility = Visibility.Collapsed;
+        SelectionSubtitle.Text = videos.Count == 1
+            ? videos[0].Title
+            : $"{videos.Count} videos selected";
+        SelectionSubtitle.Visibility = Visibility.Visible;
         TagScroller.Visibility = Visibility.Visible;
 
         using var scope = App.Services.CreateScope();
         var tagService = scope.ServiceProvider.GetRequiredService<ITagService>();
         var allTags = await tagService.GetAllAsync();
+
+        // Guard: bail out if the selection changed while we were awaiting
+        if (!ReferenceEquals(_boundVideos, videos)) return;
 
         if (allTags.Count == 0)
         {
@@ -61,50 +71,77 @@ public sealed partial class TagPanel : UserControl
             return;
         }
 
-        var currentTagIds = new HashSet<int>(video.VideoTags.Select(vt => vt.TagId));
-
         foreach (var tag in allTags)
         {
+            var countWithTag = videos.Count(v => v.VideoTags.Any(vt => vt.TagId == tag.Id));
+            var isPartial = countWithTag > 0 && countWithTag < videos.Count;
+
             var cb = new CheckBox
             {
                 Content = tag.Name,
-                IsChecked = currentTagIds.Contains(tag.Id),
+                IsThreeState = isPartial,
+                IsChecked = countWithTag == videos.Count ? true
+                          : countWithTag == 0           ? false
+                          :                              (bool?)null,
                 Tag = tag,
             };
-            cb.Checked += TagCheckBox_Changed;
-            cb.Unchecked += TagCheckBox_Changed;
+
+            if (isPartial)
+            {
+                // WinUI3 three-state cycle: Unchecked→Checked→Indeterminate→Unchecked.
+                // Clicking an indeterminate checkbox fires Unchecked.
+                // We intercept that first Unchecked-from-indeterminate to mean "add to all"
+                // and then switch to normal two-state toggling.
+                cb.Unchecked += (s, e) =>
+                {
+                    if (s is not CheckBox c || c.Tag is not Tag t) return;
+                    if (c.IsThreeState)
+                    {
+                        c.IsThreeState = false;
+                        c.IsChecked = true; // fires Checked → adds to all
+                        return;
+                    }
+                    _ = ApplyTagChangeAsync(t, false);
+                };
+                cb.Checked += (s, e) =>
+                {
+                    if (s is CheckBox c && c.Tag is Tag t) _ = ApplyTagChangeAsync(t, true);
+                };
+            }
+            else
+            {
+                cb.Checked   += (s, e) => { if (s is CheckBox c && c.Tag is Tag t) _ = ApplyTagChangeAsync(t, true); };
+                cb.Unchecked += (s, e) => { if (s is CheckBox c && c.Tag is Tag t) _ = ApplyTagChangeAsync(t, false); };
+            }
+
             TagList.Children.Add(cb);
         }
     }
 
-    private async void TagCheckBox_Changed(object sender, RoutedEventArgs e)
+    private async Task ApplyTagChangeAsync(Tag tag, bool add)
     {
-        if (sender is not CheckBox cb || cb.Tag is not Tag tag || _boundVideo is null)
-            return;
+        var videos = _boundVideos;
+        if (videos is null || !ReferenceEquals(videos, MainVm.SelectedVideos)) return;
 
         using var scope = App.Services.CreateScope();
         var tagService = scope.ServiceProvider.GetRequiredService<ITagService>();
 
-        if (cb.IsChecked == true)
+        foreach (var video in videos)
         {
-            await tagService.AddTagToVideoAsync(_boundVideo.Id, tag.Id);
-            if (!_boundVideo.VideoTags.Any(vt => vt.TagId == tag.Id))
+            var hasTag = video.VideoTags.Any(vt => vt.TagId == tag.Id);
+            if (add && !hasTag)
             {
-                _boundVideo.VideoTags.Add(new VideoTag
-                {
-                    VideoId = _boundVideo.Id,
-                    TagId = tag.Id,
-                    Tag = tag,
-                    Video = _boundVideo,
-                });
+                await tagService.AddTagToVideoAsync(video.Id, tag.Id);
+                video.VideoTags.Add(new VideoTag { VideoId = video.Id, TagId = tag.Id, Tag = tag, Video = video });
             }
-        }
-        else
-        {
-            await tagService.RemoveTagFromVideoAsync(_boundVideo.Id, tag.Id);
-            var toRemove = _boundVideo.VideoTags.FirstOrDefault(vt => vt.TagId == tag.Id);
-            if (toRemove is not null)
-                _boundVideo.VideoTags.Remove(toRemove);
+            else if (!add && hasTag)
+            {
+                await tagService.RemoveTagFromVideoAsync(video.Id, tag.Id);
+                var toRemove = video.VideoTags.FirstOrDefault(vt => vt.TagId == tag.Id);
+                if (toRemove is not null)
+                    video.VideoTags.Remove(toRemove);
+            }
         }
     }
 }
+

@@ -24,6 +24,14 @@
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    TextWrapping="Wrap" />
 
+        <!-- Selection subtitle (video title or "N videos selected") -->
+        <TextBlock x:Name="SelectionSubtitle"
+                   Grid.Row="1"
+                   Visibility="Collapsed"
+                   Style="{ThemeResource CaptionTextBlockStyle}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   TextTrimming="CharacterEllipsis" />
+
         <!-- Tag checkboxes -->
         <ScrollViewer x:Name="TagScroller"
                       Grid.Row="2"

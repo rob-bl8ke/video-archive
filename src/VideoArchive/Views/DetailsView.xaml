@@ -41,28 +41,24 @@
         <controls:DataGrid x:Name="VideosGrid"
                            AutoGenerateColumns="False"
                            IsReadOnly="True"
-                           SelectionMode="Single"
+                           SelectionMode="Extended"
                            GridLinesVisibility="Horizontal"
                            CanUserSortColumns="True"
                            Sorting="VideosGrid_Sorting"
                            SelectionChanged="VideosGrid_SelectionChanged"
+                           RightTapped="VideosGrid_RightTapped"
                            VerticalAlignment="Stretch"
                            HorizontalAlignment="Stretch">
 
             <controls:DataGrid.ContextFlyout>
                 <MenuFlyout>
-                    <MenuFlyoutItem Text="Play" Click="PlayMenuItem_Click">
+                    <MenuFlyoutItem x:Name="DetailPlayMenuItem" Text="Play" Click="PlayMenuItem_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon Glyph="&#xE768;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem Text="Add Tags" Click="AddTagsMenuItem_Click">
-                        <MenuFlyoutItem.Icon>
-                            <FontIcon Glyph="&#xE1CB;" />
-                        </MenuFlyoutItem.Icon>
-                    </MenuFlyoutItem>
                     <MenuFlyoutSeparator />
-                    <MenuFlyoutItem Text="Remove from Library" Click="RemoveMenuItem_Click">
+                    <MenuFlyoutItem x:Name="DetailRemoveMenuItem" Text="Remove from Library" Click="RemoveMenuItem_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon Glyph="&#xE74D;" />
                         </MenuFlyoutItem.Icon>
