@@ -81,12 +81,14 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         });
         _mediaPlayer.EndReached += (_, _) => _dispatcher.TryEnqueue(() =>
         {
-            if (IsLoopEnabled && ActiveSegment is null)
+            if (IsLoopEnabled)
             {
-                // Full-video loop — restart from the beginning
+                // Loop back to active segment start (or video start if none)
+                var startMs = (long)(ActiveSegment?.StartTime.TotalMilliseconds ?? 0);
                 Task.Run(() =>
                 {
                     _mediaPlayer.Stop();
+                    if (startMs > 0) _mediaPlayer.Time = startMs;
                     _mediaPlayer.Play();
                 });
             }
@@ -502,6 +504,7 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
 
     private async void LoadSegments(int videoId)
     {
+        if (_disposed) return;
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<VideoArchiveContext>();
         var segments = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
@@ -509,7 +512,38 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
                 .Where(s => s.VideoId == videoId));
         // SQLite doesn't support OrderBy on TimeSpan — sort client-side
         segments.Sort((a, b) => a.StartTime.CompareTo(b.StartTime));
+
+        if (segments.Count == 0)
+        {
+            // No segments yet — auto-create a full-video segment.
+            // VLC is already playing/previewing the file; poll until it reports the duration
+            // (header parsing usually completes before the DB query above even finishes).
+            var durationMs = _mediaPlayer.Length;
+            for (int i = 0; i < 20 && !_disposed && durationMs <= 0; i++)
+            {
+                await Task.Delay(250);
+                durationMs = _mediaPlayer.Length;
+            }
+
+            if (!_disposed && durationMs > 0)
+            {
+                var fullSegment = new VideoSegment
+                {
+                    VideoId = videoId,
+                    Name = "Full Video",
+                    StartTime = TimeSpan.Zero,
+                    EndTime = TimeSpan.FromMilliseconds(durationMs),
+                };
+                context.VideoSegments.Add(fullSegment);
+                await context.SaveChangesAsync();
+                segments.Add(fullSegment);
+            }
+        }
+
+        if (_disposed) return;
         Segments = new ObservableCollection<VideoSegment>(segments);
+        if (Segments.Count > 0)
+            ActivateSegment(Segments[0]);
     }
 
     // ── Segment helpers ──────────────────────────────────────────────
@@ -614,12 +648,18 @@ public partial class VideoPlayerViewModel : ObservableObject, IDisposable
         }
         else
         {
-            // No segments remain — revert to the start of the video, paused
-            Task.Run(() =>
-            {
-                _mediaPlayer.SetPause(true);
-                _mediaPlayer.Time = 0;
-            });
+            // No segments remain — clear all player state so that re-opening the
+            // PlayerPanel for the same video triggers Preview() → LoadSegments()
+            // and auto-recreates the full-video segment.
+            StopSegmentPlayback();
+            Task.Run(() => _mediaPlayer.Stop());
+            _currentMedia?.Dispose();
+            _currentMedia = null;
+            CurrentVideo = null;
+            State = PlaybackState.Idle;
+            OnPropertyChanged(nameof(HasMedia));
+            _dispatcher.TryEnqueue(() =>
+                App.Services.GetRequiredService<MainViewModel>().NavigateToSearchCommand.Execute(null));
         }
     }
 

@@ -5,7 +5,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using VideoArchive.Interop;
-using VideoArchive.Models;
 using VideoArchive.ViewModels;
 
 namespace VideoArchive.Views;
@@ -611,21 +610,6 @@ public sealed partial class PlayerPanel : UserControl
     private void AdjustEndPlus5_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel.SelectedSegment is { } seg) { ViewModel.AdjustEndTimeCommand.Execute((seg, 5.0)); RefreshAdjustPanel(); }
-    }
-
-    /// <summary>
-    /// Called from MainWindow to start playback of a video.
-    /// </summary>
-    public void PlayVideo(Video video)
-    {
-        NoVideoPlaceholder.Visibility = Visibility.Collapsed;
-        EnsureVideoWindow();
-        ViewModel.Play(video);
-
-        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
-        {
-            PositionVideoWindow();
-        });
     }
 
     private static class NativeMethods

@@ -68,7 +68,7 @@
                 <FontIcon Glyph="&#xE714;"
                           FontSize="48"
                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                <TextBlock Text="Select a video and click Play"
+                <TextBlock Text="Select a video to preview it here"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            HorizontalAlignment="Center" />
             </StackPanel>
