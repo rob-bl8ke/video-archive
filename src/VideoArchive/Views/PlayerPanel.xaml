@@ -14,6 +14,30 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="AdjustPanelStates">
+                <VisualState x:Name="AdjustWide" />
+                <VisualState x:Name="AdjustNarrow">
+                    <VisualState.Setters>
+                        <Setter Target="AdjStartTimecode.Visibility" Value="Collapsed" />
+                        <Setter Target="AdjEndTimecode.Visibility" Value="Collapsed" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="AdjustCompact">
+                    <VisualState.Setters>
+                        <Setter Target="AdjStartTime.Visibility" Value="Collapsed" />
+                        <Setter Target="AdjStartTimecode.Visibility" Value="Collapsed" />
+                        <Setter Target="AdjEndTime.Visibility" Value="Collapsed" />
+                        <Setter Target="AdjEndTimecode.Visibility" Value="Collapsed" />
+                        <Setter Target="StartMinus5Button.Visibility" Value="Collapsed" />
+                        <Setter Target="StartPlus5Button.Visibility" Value="Collapsed" />
+                        <Setter Target="EndMinus5Button.Visibility" Value="Collapsed" />
+                        <Setter Target="EndPlus5Button.Visibility" Value="Collapsed" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
         <!-- Back to search header -->
         <Grid Grid.Row="0" Padding="8,6" Background="{ThemeResource LayerFillColorDefaultBrush}">
             <Button x:Name="BackToSearchButton"
@@ -147,205 +171,210 @@
                 BorderThickness="0,1,0,0"
                 Background="{ThemeResource LayerFillColorDefaultBrush}"
                 Padding="12,8,12,10">
-            <StackPanel Spacing="6">
+            <!-- Single row: [start time][start buttons][segment name][end buttons][end time] -->
+            <Grid ColumnSpacing="8" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-                <!-- Header -->
-                <TextBlock x:Name="SelectedSegmentLabel"
-                           Style="{ThemeResource CaptionTextBlockStyle}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           TextTrimming="CharacterEllipsis" />
+                <!-- Col 0: Start time + timecode -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock x:Name="AdjStartTime"
+                               Text="--:--"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               FontSize="11"
+                               FontFamily="Consolas" />
+                    <TextBlock x:Name="AdjStartTimecode"
+                               Text="--:--:--:--"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               FontSize="10"
+                               FontFamily="Consolas"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
 
-                <!-- Start time + adjustment buttons -->
-                <Grid ColumnSpacing="8">
+                <!-- Col 1: Start adjustment buttons (2-row × 5-col) -->
+                <Grid Grid.Column="1" RowSpacing="1" ColumnSpacing="1" VerticalAlignment="Center">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="36" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0"
-                               Text="Start"
-                               Style="{ThemeResource CaptionTextBlockStyle}"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               VerticalAlignment="Center"
-                               FontSize="11" />
+                    <!-- Coarse row -->
+                    <Button x:Name="StartMinus5Button" Grid.Row="0" Grid.Column="0" Click="AdjustStartMinus5_Click"
+                            ToolTipService.ToolTip="Start −5s"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="−5" FontSize="10" />
+                    </Button>
+                    <Button Grid.Row="0" Grid.Column="1" Click="AdjustStartMinus1_Click"
+                            ToolTipService.ToolTip="Start −1s"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="−1" FontSize="10" />
+                    </Button>
+                    <Button Grid.Row="0" Grid.Column="2" Click="SetStartFromPlayhead_Click"
+                            ToolTipService.ToolTip="Set start to current time"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <FontIcon Glyph="&#xE892;" FontSize="10" />
+                    </Button>
+                    <Button Grid.Row="0" Grid.Column="3" Click="AdjustStartPlus1_Click"
+                            ToolTipService.ToolTip="Start +1s"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="+1" FontSize="10" />
+                    </Button>
+                    <Button x:Name="StartPlus5Button" Grid.Row="0" Grid.Column="4" Click="AdjustStartPlus5_Click"
+                            ToolTipService.ToolTip="Start +5s"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="+5" FontSize="10" />
+                    </Button>
 
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock x:Name="AdjStartTime"
-                                   Text="--:--"
-                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                   FontSize="11"
-                                   FontFamily="Consolas" />
-                        <TextBlock x:Name="AdjStartTimecode"
-                                   Text="--:--:--:--"
-                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                   FontSize="10"
-                                   FontFamily="Consolas"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-
-                    <!-- 2-row × 5-col button grid -->
-                    <Grid Grid.Column="2" RowSpacing="1" ColumnSpacing="1">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="28" />
-                            <ColumnDefinition Width="28" />
-                            <ColumnDefinition Width="28" />
-                            <ColumnDefinition Width="28" />
-                            <ColumnDefinition Width="28" />
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Coarse row -->
-                        <Button Grid.Row="0" Grid.Column="0" Click="AdjustStartMinus5_Click"
-                                ToolTipService.ToolTip="Start −5s"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="−5" FontSize="10" />
-                        </Button>
-                        <Button Grid.Row="0" Grid.Column="1" Click="AdjustStartMinus1_Click"
-                                ToolTipService.ToolTip="Start −1s"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="−1" FontSize="10" />
-                        </Button>
-                        <Button Grid.Row="0" Grid.Column="2" Click="SetStartFromPlayhead_Click"
-                                ToolTipService.ToolTip="Set start to current time"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <FontIcon Glyph="&#xE892;" FontSize="10" />
-                        </Button>
-                        <Button Grid.Row="0" Grid.Column="3" Click="AdjustStartPlus1_Click"
-                                ToolTipService.ToolTip="Start +1s"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="+1" FontSize="10" />
-                        </Button>
-                        <Button Grid.Row="0" Grid.Column="4" Click="AdjustStartPlus5_Click"
-                                ToolTipService.ToolTip="Start +5s"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="+5" FontSize="10" />
-                        </Button>
-
-                        <!-- Fine row -->
-                        <Button Grid.Row="1" Grid.Column="0" Click="AdjustStartMinus1Frame_Click"
-                                ToolTipService.ToolTip="Start −1 frame"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="−1f" FontSize="10" />
-                        </Button>
-                        <Button Grid.Row="1" Grid.Column="1" Click="AdjustStartMinusTenth_Click"
-                                ToolTipService.ToolTip="Start −0.1s"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="−.1" FontSize="10" />
-                        </Button>
-                        <!-- col 2 empty -->
-                        <Button Grid.Row="1" Grid.Column="3" Click="AdjustStartPlusTenth_Click"
-                                ToolTipService.ToolTip="Start +0.1s"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="+.1" FontSize="10" />
-                        </Button>
-                        <Button Grid.Row="1" Grid.Column="4" Click="AdjustStartPlus1Frame_Click"
-                                ToolTipService.ToolTip="Start +1 frame"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="+1f" FontSize="10" />
-                        </Button>
-                    </Grid>
+                    <!-- Fine row -->
+                    <Button Grid.Row="1" Grid.Column="0" Click="AdjustStartMinus1Frame_Click"
+                            ToolTipService.ToolTip="Start −1 frame"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="−1f" FontSize="10" />
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="1" Click="AdjustStartMinusTenth_Click"
+                            ToolTipService.ToolTip="Start −0.1s"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="−.1" FontSize="10" />
+                    </Button>
+                    <!-- col 2 empty -->
+                    <Button Grid.Row="1" Grid.Column="3" Click="AdjustStartPlusTenth_Click"
+                            ToolTipService.ToolTip="Start +0.1s"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="+.1" FontSize="10" />
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="4" Click="AdjustStartPlus1Frame_Click"
+                            ToolTipService.ToolTip="Start +1 frame"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="+1f" FontSize="10" />
+                    </Button>
                 </Grid>
 
-                <!-- End time + adjustment buttons -->
-                <Grid ColumnSpacing="8">
+                <!-- Col 2: Segment name — label + pencil toggle, or TextBox in edit mode -->
+                <Grid Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <StackPanel x:Name="SegmentNameLabelPanel"
+                                Orientation="Horizontal" Spacing="4"
+                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock x:Name="SegmentNameLabel"
+                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxWidth="120"
+                                   VerticalAlignment="Center" />
+                        <Button x:Name="EditSegmentNameButton"
+                                Click="EditSegmentName_Click"
+                                ToolTipService.ToolTip="Rename segment"
+                                Padding="4"
+                                Width="22" Height="22"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                MinWidth="0" MinHeight="0">
+                            <FontIcon Glyph="&#xE70F;" FontSize="10" />
+                        </Button>
+                    </StackPanel>
+                    <TextBox x:Name="SegmentNameEditor"
+                             Visibility="Collapsed"
+                             MinWidth="80" MaxWidth="160"
+                             FontSize="11"
+                             Padding="4,2"
+                             HorizontalAlignment="Center"
+                             LostFocus="SegmentNameEditor_LostFocus"
+                             KeyDown="SegmentNameEditor_KeyDown" />
+                </Grid>
+
+                <!-- Col 3: End adjustment buttons (2-row × 5-col) -->
+                <Grid Grid.Column="3" RowSpacing="1" ColumnSpacing="1" VerticalAlignment="Center">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="36" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0"
-                               Text="End"
-                               Style="{ThemeResource CaptionTextBlockStyle}"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               VerticalAlignment="Center"
-                               FontSize="11" />
+                    <!-- Coarse row -->
+                    <Button x:Name="EndMinus5Button" Grid.Row="0" Grid.Column="0" Click="AdjustEndMinus5_Click"
+                            ToolTipService.ToolTip="End −5s"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="−5" FontSize="10" />
+                    </Button>
+                    <Button Grid.Row="0" Grid.Column="1" Click="AdjustEndMinus1_Click"
+                            ToolTipService.ToolTip="End −1s"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="−1" FontSize="10" />
+                    </Button>
+                    <Button Grid.Row="0" Grid.Column="2" Click="SetEndFromPlayhead_Click"
+                            ToolTipService.ToolTip="Set end to current time"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <FontIcon Glyph="&#xE893;" FontSize="10" />
+                    </Button>
+                    <Button Grid.Row="0" Grid.Column="3" Click="AdjustEndPlus1_Click"
+                            ToolTipService.ToolTip="End +1s"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="+1" FontSize="10" />
+                    </Button>
+                    <Button x:Name="EndPlus5Button" Grid.Row="0" Grid.Column="4" Click="AdjustEndPlus5_Click"
+                            ToolTipService.ToolTip="End +5s"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="+5" FontSize="10" />
+                    </Button>
 
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock x:Name="AdjEndTime"
-                                   Text="--:--"
-                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                   FontSize="11"
-                                   FontFamily="Consolas" />
-                        <TextBlock x:Name="AdjEndTimecode"
-                                   Text="--:--:--:--"
-                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                   FontSize="10"
-                                   FontFamily="Consolas"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-
-                    <!-- 2-row × 5-col button grid -->
-                    <Grid Grid.Column="2" RowSpacing="1" ColumnSpacing="1">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="28" />
-                            <ColumnDefinition Width="28" />
-                            <ColumnDefinition Width="28" />
-                            <ColumnDefinition Width="28" />
-                            <ColumnDefinition Width="28" />
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Coarse row -->
-                        <Button Grid.Row="0" Grid.Column="0" Click="AdjustEndMinus5_Click"
-                                ToolTipService.ToolTip="End −5s"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="−5" FontSize="10" />
-                        </Button>
-                        <Button Grid.Row="0" Grid.Column="1" Click="AdjustEndMinus1_Click"
-                                ToolTipService.ToolTip="End −1s"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="−1" FontSize="10" />
-                        </Button>
-                        <Button Grid.Row="0" Grid.Column="2" Click="SetEndFromPlayhead_Click"
-                                ToolTipService.ToolTip="Set end to current time"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <FontIcon Glyph="&#xE893;" FontSize="10" />
-                        </Button>
-                        <Button Grid.Row="0" Grid.Column="3" Click="AdjustEndPlus1_Click"
-                                ToolTipService.ToolTip="End +1s"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="+1" FontSize="10" />
-                        </Button>
-                        <Button Grid.Row="0" Grid.Column="4" Click="AdjustEndPlus5_Click"
-                                ToolTipService.ToolTip="End +5s"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="+5" FontSize="10" />
-                        </Button>
-
-                        <!-- Fine row -->
-                        <Button Grid.Row="1" Grid.Column="0" Click="AdjustEndMinus1Frame_Click"
-                                ToolTipService.ToolTip="End −1 frame"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="−1f" FontSize="10" />
-                        </Button>
-                        <Button Grid.Row="1" Grid.Column="1" Click="AdjustEndMinusTenth_Click"
-                                ToolTipService.ToolTip="End −0.1s"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="−.1" FontSize="10" />
-                        </Button>
-                        <!-- col 2 empty -->
-                        <Button Grid.Row="1" Grid.Column="3" Click="AdjustEndPlusTenth_Click"
-                                ToolTipService.ToolTip="End +0.1s"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="+.1" FontSize="10" />
-                        </Button>
-                        <Button Grid.Row="1" Grid.Column="4" Click="AdjustEndPlus1Frame_Click"
-                                ToolTipService.ToolTip="End +1 frame"
-                                Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
-                            <TextBlock Text="+1f" FontSize="10" />
-                        </Button>
-                    </Grid>
+                    <!-- Fine row -->
+                    <Button Grid.Row="1" Grid.Column="0" Click="AdjustEndMinus1Frame_Click"
+                            ToolTipService.ToolTip="End −1 frame"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="−1f" FontSize="10" />
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="1" Click="AdjustEndMinusTenth_Click"
+                            ToolTipService.ToolTip="End −0.1s"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="−.1" FontSize="10" />
+                    </Button>
+                    <!-- col 2 empty -->
+                    <Button Grid.Row="1" Grid.Column="3" Click="AdjustEndPlusTenth_Click"
+                            ToolTipService.ToolTip="End +0.1s"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="+.1" FontSize="10" />
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="4" Click="AdjustEndPlus1Frame_Click"
+                            ToolTipService.ToolTip="End +1 frame"
+                            Width="28" Height="22" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center">
+                        <TextBlock Text="+1f" FontSize="10" />
+                    </Button>
                 </Grid>
 
-            </StackPanel>
+                <!-- Col 4: End time + timecode -->
+                <StackPanel Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <TextBlock x:Name="AdjEndTime"
+                               Text="--:--"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               FontSize="11"
+                               FontFamily="Consolas"
+                               HorizontalAlignment="Right" />
+                    <TextBlock x:Name="AdjEndTimecode"
+                               Text="--:--:--:--"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               FontSize="10"
+                               FontFamily="Consolas"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               HorizontalAlignment="Right" />
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

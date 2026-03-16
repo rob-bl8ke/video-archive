@@ -20,6 +20,8 @@ public sealed partial class PlayerPanel : UserControl
     private bool _isFullscreen;
     private bool _overlayVisible;
     private bool _navPaneAnimating;
+    private bool _editingSegmentName;
+    private string _nameBeforeEdit = string.Empty;
 
     // Win32 subclass for immediate popup repositioning on window move/resize
     private static IntPtr _originalWndProc;
@@ -164,6 +166,7 @@ public sealed partial class PlayerPanel : UserControl
         _timer.Start();
 
         PositionVideoWindow();
+        this.SizeChanged += PlayerPanel_SizeChanged;
 
         // The Slider marks PointerPressed/Released as handled internally, so XAML
         // attribute handlers are never invoked. Use AddHandler with handledEventsToo
@@ -180,6 +183,7 @@ public sealed partial class PlayerPanel : UserControl
     {
         _timer?.Stop();
         _videoWindow?.Hide();
+        this.SizeChanged -= PlayerPanel_SizeChanged;
     }
 
     /// <summary>
@@ -264,6 +268,17 @@ public sealed partial class PlayerPanel : UserControl
     {
         if (!_isFullscreen)
             PositionVideoWindow();
+    }
+
+    private void PlayerPanel_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        string state = e.NewSize.Width switch
+        {
+            >= 500 => "AdjustWide",
+            >= 380 => "AdjustNarrow",
+            _      => "AdjustCompact",
+        };
+        VisualStateManager.GoToState(this, state, false);
     }
 
     private void PositionVideoWindow()
@@ -438,12 +453,62 @@ public sealed partial class PlayerPanel : UserControl
         }
 
         var fps = ViewModel.VideoFps;
-        SelectedSegmentLabel.Text = $"Adjusting: {seg.Name}";
+        if (!_editingSegmentName)
+            SegmentNameLabel.Text = seg.Name;
         AdjStartTime.Text = FormatPreciseDuration(seg.StartTime);
         AdjStartTimecode.Text = FormatTimecode(seg.StartTime, fps);
         AdjEndTime.Text = FormatPreciseDuration(seg.EndTime);
         AdjEndTimecode.Text = FormatTimecode(seg.EndTime, fps);
         SegmentAdjustPanel.Visibility = Visibility.Visible;
+    }
+
+    private void EditSegmentName_Click(object sender, RoutedEventArgs e)
+    {
+        var seg = ViewModel.SelectedSegment;
+        if (seg is null) return;
+        _nameBeforeEdit = seg.Name;
+        _editingSegmentName = true;
+        SegmentNameEditor.Text = seg.Name;
+        SegmentNameLabelPanel.Visibility = Visibility.Collapsed;
+        SegmentNameEditor.Visibility = Visibility.Visible;
+        SegmentNameEditor.Focus(FocusState.Programmatic);
+        SegmentNameEditor.SelectAll();
+    }
+
+    private void CommitSegmentNameEdit()
+    {
+        if (!_editingSegmentName) return;
+        _editingSegmentName = false;
+        var seg = ViewModel.SelectedSegment;
+        if (seg is not null)
+        {
+            var newName = SegmentNameEditor.Text.Trim();
+            seg.Name = string.IsNullOrWhiteSpace(newName) ? _nameBeforeEdit : newName;
+            ViewModel.RenameSegmentCommand.Execute(seg);
+        }
+        SegmentNameEditor.Visibility = Visibility.Collapsed;
+        SegmentNameLabelPanel.Visibility = Visibility.Visible;
+        RefreshAdjustPanel();
+    }
+
+    private void SegmentNameEditor_LostFocus(object sender, RoutedEventArgs e)
+        => CommitSegmentNameEdit();
+
+    private void SegmentNameEditor_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            CommitSegmentNameEdit();
+            e.Handled = true;
+        }
+        else if (e.Key == Windows.System.VirtualKey.Escape)
+        {
+            _editingSegmentName = false;
+            SegmentNameEditor.Visibility = Visibility.Collapsed;
+            SegmentNameLabelPanel.Visibility = Visibility.Visible;
+            RefreshAdjustPanel();
+            e.Handled = true;
+        }
     }
 
     // ── Set from playhead ────────────────────────────────────────────

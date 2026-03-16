@@ -13,6 +13,7 @@ public sealed partial class MainWindow : Window
 {
     public MainViewModel ViewModel { get; }
     private readonly ISettingsService _settings;
+    private bool _tabsPanelWasCollapsed;
 
     public MainWindow()
     {
@@ -139,9 +140,16 @@ public sealed partial class MainWindow : Window
         PlayerPanelControl.Visibility  = isPlayer ? Visibility.Visible   : Visibility.Collapsed;
 
         if (isPlayer)
+        {
+            _tabsPanelWasCollapsed = ViewModel.IsTabsPanelCollapsed;
+            ViewModel.IsTabsPanelCollapsed = true;
             PlayerPanelControl.ShowOverlay();
+        }
         else
+        {
+            ViewModel.IsTabsPanelCollapsed = _tabsPanelWasCollapsed;
             PlayerPanelControl.HideOverlay();
+        }
     }
 
 }
