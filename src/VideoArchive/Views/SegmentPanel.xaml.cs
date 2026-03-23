@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
@@ -25,6 +24,11 @@ public sealed partial class SegmentPanel : UserControl
 
         SegmentsList.ItemsSource = ViewModel.Segments;
 
+        // Each time the panel re-enters the visual tree (e.g. when the Pivot item is
+        // inserted back on entering PlayerView), queue a deferred refresh so containers
+        // have a chance to render before we try to walk the visual tree.
+        this.Loaded += (_, _) => SegmentsList.LayoutUpdated += OnSegmentsLayoutUpdated;
+
         ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(VideoPlayerViewModel.Segments))
@@ -37,8 +41,7 @@ public sealed partial class SegmentPanel : UserControl
             if (e.PropertyName is nameof(VideoPlayerViewModel.ActiveSegment)
                                 or nameof(VideoPlayerViewModel.SelectedSegment)
                                 or nameof(VideoPlayerViewModel.IsLoopEnabled)
-                                or nameof(VideoPlayerViewModel.State)
-                                or nameof(VideoPlayerViewModel.VideoFps))
+                                or nameof(VideoPlayerViewModel.State))
             {
                 RefreshSegmentPlayStates();
             }
@@ -62,7 +65,6 @@ public sealed partial class SegmentPanel : UserControl
         var activeId     = ViewModel.ActiveSegment?.Id;
         var selectedId   = ViewModel.SelectedSegment?.Id;
         var isPlaying    = ViewModel.State == PlaybackState.Playing;
-        var fps          = ViewModel.VideoFps;
         var defaultBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
 
         // Colour tokens:
@@ -74,10 +76,17 @@ public sealed partial class SegmentPanel : UserControl
             (Windows.UI.Color)Application.Current.Resources["SystemAccentColor"]);
         var playingBrush  = new SolidColorBrush(Colors.SteelBlue);
 
+        bool anyMissed = false;
+
         foreach (var segment in ViewModel.Segments)
         {
             if (SegmentsList.ContainerFromItem(segment) is not ListViewItem container)
+            {
+                // Track if a container we care about highlighting is missing so we can retry.
+                if (segment.Id == activeId || segment.Id == selectedId)
+                    anyMissed = true;
                 continue;
+            }
 
             bool isActive           = segment.Id == activeId;
             bool isSelected         = segment.Id == selectedId;
@@ -102,28 +111,16 @@ public sealed partial class SegmentPanel : UserControl
                     card.BorderThickness = new Thickness(1);
                 }
             }
-
-            // Timecode TextBlocks — updated imperatively so FPS changes are reflected immediately
-            var startTc = FindDescendants<TextBlock>(container)
-                          .FirstOrDefault(tb => AutomationProperties.GetName(tb) == "start-timecode");
-            if (startTc is not null)
-                startTc.Text = FormatTimecode(segment.StartTime, fps);
-
-            var endTc = FindDescendants<TextBlock>(container)
-                        .FirstOrDefault(tb => AutomationProperties.GetName(tb) == "end-timecode");
-            if (endTc is not null)
-                endTc.Text = FormatTimecode(segment.EndTime, fps);
         }
-    }
 
-    private static string FormatTimecode(TimeSpan ts, float fps)
-    {
-        if (fps <= 0f) return "--:--:--:--";
-        int h = (int)ts.TotalHours;
-        int m = ts.Minutes;
-        int s = ts.Seconds;
-        int f = (int)Math.Floor(ts.Milliseconds / 1000.0 * fps);
-        return $"{h:D2}:{m:D2}:{s:D2}:{f:D2}";
+        // If a highlighted container wasn't ready (e.g. ListView inside a Collapsed
+        // ancestor), re-arm so we retry as soon as the next layout pass occurs —
+        // including when the tab panel is expanded and the ListView becomes visible.
+        if (anyMissed)
+        {
+            SegmentsList.LayoutUpdated -= OnSegmentsLayoutUpdated;
+            SegmentsList.LayoutUpdated += OnSegmentsLayoutUpdated;
+        }
     }
 
     // ── Visual tree helpers ───────────────────────────────────────────
@@ -179,29 +176,6 @@ public sealed partial class SegmentPanel : UserControl
 
         if (sender is Border border && border.DataContext is VideoSegment segment)
             ViewModel.ActivateSegment(segment);
-    }
-
-    // ── Rename ───────────────────────────────────────────────────────
-
-    private void SegmentName_GotFocus(object sender, RoutedEventArgs e)
-    {
-        if (sender is TextBox tb && tb.Tag is VideoSegment segment)
-            ViewModel.ActivateSegment(segment);
-    }
-
-    private void SegmentName_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (sender is TextBox tb && tb.Tag is VideoSegment segment)
-            ViewModel.RenameSegmentCommand.Execute(segment);
-    }
-
-    private void SegmentName_KeyDown(object sender, KeyRoutedEventArgs e)
-    {
-        if (e.Key == Windows.System.VirtualKey.Enter && sender is TextBox tb && tb.Tag is VideoSegment segment)
-        {
-            ViewModel.RenameSegmentCommand.Execute(segment);
-            e.Handled = true;
-        }
     }
 
     // ── Segment transport ────────────────────────────────────────────

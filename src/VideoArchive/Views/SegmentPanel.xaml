@@ -52,80 +52,62 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <!-- Row 0: Editable name -->
-                            <TextBox Grid.Row="0"
-                                     Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     PlaceholderText="Segment name"
-                                     FontSize="12"
-                                     FontWeight="SemiBold"
-                                     Padding="4,2"
-                                     BorderThickness="0,0,0,1"
-                                     GotFocus="SegmentName_GotFocus"
-                                     LostFocus="SegmentName_LostFocus"
-                                     KeyDown="SegmentName_KeyDown"
-                                     Tag="{Binding}" />
+                            <!-- Row 0: Read-only name -->
+                            <TextBlock Grid.Row="0"
+                                       Text="{Binding Name}"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" />
 
-                            <!-- Row 1: Start time -->
-                            <Grid Grid.Row="1" ColumnSpacing="2" Background="Transparent">
+                            <!-- Row 1: Start (left) and End (right) on one row -->
+                            <Grid Grid.Row="1" Background="Transparent">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="36" />
+                                    <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0"
-                                           Text="Start"
-                                           Style="{ThemeResource CaptionTextBlockStyle}"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                           VerticalAlignment="Center"
-                                           FontSize="11" />
-
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <!-- Left group: Start label + start times, hugs left -->
+                                <StackPanel Grid.Column="0"
+                                            Orientation="Horizontal"
+                                            Spacing="4"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center">
+                                    <TextBlock Text="Start"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               VerticalAlignment="Center"
+                                               FontSize="11" />
                                     <TextBlock Text="{Binding StartTime, Converter={StaticResource PreciseDuration}}"
                                                Style="{ThemeResource CaptionTextBlockStyle}"
                                                FontSize="11"
-                                               FontFamily="Consolas" />
-                                    <TextBlock AutomationProperties.Name="start-timecode"
-                                               Text="--:--:--:--"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               FontSize="10"
                                                FontFamily="Consolas"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                               VerticalAlignment="Center" />
                                 </StackPanel>
 
-                            </Grid>
-
-                            <!-- Row 2: End time -->
-                            <Grid Grid.Row="2" ColumnSpacing="2" Background="Transparent">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="36" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-
-                                <TextBlock Grid.Column="0"
-                                           Text="End"
-                                           Style="{ThemeResource CaptionTextBlockStyle}"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                           VerticalAlignment="Center"
-                                           FontSize="11" />
-
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <!-- Right group: end times + End label, hugs right -->
+                                <StackPanel Grid.Column="1"
+                                            Orientation="Horizontal"
+                                            Spacing="4"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center">
                                     <TextBlock Text="{Binding EndTime, Converter={StaticResource PreciseDuration}}"
                                                Style="{ThemeResource CaptionTextBlockStyle}"
                                                FontSize="11"
-                                               FontFamily="Consolas" />
-                                    <TextBlock AutomationProperties.Name="end-timecode"
-                                               Text="--:--:--:--"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               FontSize="10"
                                                FontFamily="Consolas"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Text="End"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               VerticalAlignment="Center"
+                                               FontSize="11" />
                                 </StackPanel>
                             </Grid>
-                            <!-- Row 3: Delete -->
-                            <Grid Grid.Row="3" Margin="0,2,0,0" Background="Transparent">
+
+                            <!-- Row 2: Delete -->
+                            <Grid Grid.Row="2" Margin="0,2,0,0" Background="Transparent">
                                 <Button Click="DeleteSegment_Click"
                                         Tag="{Binding}"
                                         ToolTipService.ToolTip="Delete segment"

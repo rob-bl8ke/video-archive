@@ -51,17 +51,18 @@ public sealed partial class TabsPanel : UserControl
 
         if (isPlayerView && !_segmentTabPresent)
         {
-            // Re-add Segments tab
-            TabPivot.Items.Add(SegmentsPivotItem);
+            // Re-add Segments tab as first tab and make it active
+            TabPivot.Items.Insert(0, SegmentsPivotItem);
+            TabPivot.SelectedItem = SegmentsPivotItem;
             _segmentTabPresent = true;
         }
         else if (!isPlayerView && _segmentTabPresent)
         {
-            // Switch to Tags tab first so the pivot doesn't land on a removed item
-            TabPivot.SelectedItem = TagsPivotItem;
-
-            // Remove Segments tab — state is preserved in the SegmentPanel control instance
+            // Remove Segments tab first, then select Tags (now the only item at index 0).
+            // Doing it this order avoids setting SelectedItem on a Collapsed Pivot targeting
+            // an item at index 1, which can silently fail and corrupt the selection state.
             TabPivot.Items.Remove(SegmentsPivotItem);
+            TabPivot.SelectedIndex = 0;
             _segmentTabPresent = false;
         }
     }
